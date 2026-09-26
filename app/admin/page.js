@@ -1,0 +1,48 @@
+'use client'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft, ArrowRight, Shield } from 'lucide-react'
+import { setToken, setStoredUser, getStoredUser } from '@/lib/session'
+
+export default function AdminLogin() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const router = useRouter()
+
+  useEffect(() => {
+    const u = getStoredUser()
+    if (u?.role === 'admin') router.push('/admin/dashboard')
+  }, [router])
+
+  const submit = async (e) => {
+    e.preventDefault(); setError('')
+    const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
+    const data = await res.json()
+    if (!res.ok || data.user?.role !== 'admin') { setError(data.error || 'Not an admin account.'); return }
+    setToken(data.token); setStoredUser(data.user); router.push('/admin/dashboard')
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#0a0a0a] px-6 text-white">
+      <div className="w-full max-w-md">
+        <Link href="/" className="mb-10 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#ff2d2d]"><ArrowLeft size={14} /> Back to store</Link>
+        <div className="flex items-center gap-3"><Shield className="text-[#ff2d2d]" size={24} /><p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#ff2d2d]">Restricted / 404 admin</p></div>
+        <h1 className="mt-6 text-6xl font-black uppercase leading-[.8] tracking-[-.09em]">Admin<br /><span className="text-[#ff2d2d]">gate.</span></h1>
+        <form onSubmit={submit} className="mt-10 space-y-5">
+          <div>
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Email</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="w-full border-b border-white/40 bg-transparent py-3 text-lg outline-none focus:border-[#ff2d2d]" />
+          </div>
+          <div>
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Password</label>
+            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required className="w-full border-b border-white/40 bg-transparent py-3 text-lg outline-none focus:border-[#ff2d2d]" />
+          </div>
+          {error && <p className="bg-[#ff2d2d]/20 p-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#ff2d2d]">{error}</p>}
+          <button className="group flex w-full items-center justify-center gap-3 bg-[#ff2d2d] px-4 py-5 text-[11px] font-bold uppercase tracking-[0.22em] hover:bg-white hover:text-black">Enter admin <ArrowRight size={15} className="transition group-hover:translate-x-1" /></button>
+        </form>
+      </div>
+    </main>
+  )
+}

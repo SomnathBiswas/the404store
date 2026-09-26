@@ -250,3 +250,74 @@
 ## Testing Agent Communication
 - agent: "testing"
 - message: "Backend MongoDB API fully functional. All requested endpoints verified and working correctly. Backend task marked working:true and needs_retesting:false. No critical issues found."
+## Backend v3: Auth + Admin + Coupons + Loyalty + Orders (sequence 6)
+- Added POST /api/auth/signup, /api/auth/login, GET /api/auth/me (Bearer token via HMAC-signed base64 payload)
+- Admin login accepts creds from ADMIN_EMAIL / ADMIN_PASSWORD env; returns admin token with role=admin
+- GET /api/admin/{products,coupons,orders,users,stats} - admin only
+- POST/PUT/DELETE /api/admin/products (create/update/delete)
+- POST/PUT/DELETE /api/admin/coupons (create/toggle-active/delete)
+- PUT /api/admin/orders/[id] to change status; crediting 100 loyalty points to userId on transition to "delivered" (idempotent)
+- GET /api/coupons/validate?code=&subtotal= for customer-side validation
+- POST /api/orders now: computes subtotal, applies coupon (flat/percent), redeems points (100 pts = ₹25), stores pointsEarned=100 (credited on delivery)
+- GET /api/wishlist/lookup?slugs= returns product docs by slug list
+- Manual curl smoke test PASSED: signup->me, admin login, coupon creation, coupon validate (10% off 2499 = -250), place order (total 2249, +100 pts pending delivery), admin sees order, non-admin gets 401
+
+## Backend Retest Request (sequence 7)
+## - task: "Auth + Admin + Coupons + Loyalty end-to-end"
+##   implemented: true
+##   working: true
+##   file: "/app/app/api/[[...path]]/route.js, /app/lib/auth.js"
+##   stuck_count: 0
+##   priority: "high"
+##   needs_retesting: false
+##   status_history:
+##       - working: "NA"
+##         agent: "main"
+##         comment: "Please verify comprehensively:
+##  (1) POST /api/auth/signup returns token+user with loyaltyPoints=0; duplicate email returns 400.
+##  (2) POST /api/auth/login for a customer returns token+user; wrong password returns 401.
+##  (3) POST /api/auth/login with ADMIN_EMAIL/ADMIN_PASSWORD from /app/.env returns user.role='admin'.
+##  (4) GET /api/auth/me with the token returns the user; no/invalid token returns 401.
+##  (5) Admin endpoints (GET /api/admin/products, /coupons, /orders, /users, /stats) require admin token (401 for customer or missing).
+##  (6) POST /api/admin/coupons creates coupon (percent + flat), returns 201 with UUID id. GET /api/admin/coupons lists them.
+##  (7) PUT /api/admin/coupons/{id} toggles active. DELETE /api/admin/coupons/{id} removes it.
+##  (8) GET /api/coupons/validate?code=X&subtotal=Y returns discount correctly:
+##      - percent: discount = round(subtotal*value/100)
+##      - flat: discount = min(value, subtotal)
+##      - inactive/expired/below minOrder returns 400 with error
+##  (9) POST /api/orders with valid Bearer token:
+##      - computes subtotal, applies coupon (if code sent), applies loyalty redemption (100 pts = ₹25, multiples of 100 only),
+##        stores pointsEarned=100, total = max(0, subtotal - coupon - pointsDiscount)
+##      - if user redeems points, user.loyaltyPoints decreases immediately by pointsRedeemed
+##  (10) PUT /api/admin/orders/{id} setting status='delivered' credits +100 to user's loyaltyPoints ONCE; setting again should not double credit.
+##  (11) POST /api/admin/products creates a product (needs name, slug, price, category); GET /api/products/{slug} returns it; DELETE /api/admin/products/{slug} removes it.
+##  (12) GET /api/wishlist/lookup?slugs=a,b returns product docs for those slugs.
+##  (13) Node syntax check for /app/app/api/[[...path]]/route.js and /app/lib/auth.js and /app/lib/session.js.
+##       - working: true
+##         agent: "testing"
+##         comment: "All 13 comprehensive backend tests passed. Auth (signup, login, admin, /me), admin endpoints authorization, coupon CRUD and validation math, order creation with coupon and loyalty redemption, idempotent delivery loyalty credit, admin product CRUD, wishlist lookup, and Node syntax checks all verified and working correctly."
+##  Reuse existing seeded products; do not modify code."
+
+
+## Backend Test Results - Testing Agent (sequence 7)
+- working: true
+- agent: "testing"
+- comment: "Executed comprehensive backend test suite via /app/backend_test.py against https://not-found-style.preview.emergentagent.com/api. All 13 tests PASSED:
+  (1) Auth Signup: POST /api/auth/signup creates customer with loyaltyPoints=0, returns token+user; duplicate email correctly returns 400.
+  (2) Customer Login: POST /api/auth/login returns token+user; wrong password returns 401.
+  (3) Admin Login: POST /api/auth/login with ADMIN_EMAIL/ADMIN_PASSWORD returns user.role='admin'.
+  (4) Auth /me: GET /api/auth/me with Bearer token returns user; invalid/missing token returns 401.
+  (5) Admin Authorization: All 5 admin endpoints (/admin/products, /coupons, /orders, /users, /stats) return 401 for customer/none, 200 for admin token.
+  (6) Admin Coupon CRUD: POST /api/admin/coupons creates percent and flat coupons with UUID ids; GET lists them; PUT toggles active; DELETE removes them.
+  (7) Coupon Validation Math: GET /api/coupons/validate correctly calculates: percent (10% of ₹2499 = ₹250), flat (min(200, 1500) = ₹200), flat capped (min(150, 100) = ₹100); inactive/below minOrder returns 400.
+  (8) Order with Coupon & Loyalty: POST /api/orders computes subtotal=2500, applies coupon discount=-250, redeems 100 loyalty points for ₹25 discount, total=2225, pointsEarned=100; user.loyaltyPoints decreased immediately from 100 to 0.
+  (9) Order Delivery Loyalty Credit: PUT /api/admin/orders/{id} with status='delivered' credits +100 points to user (100 total); second delivery call does NOT double credit (idempotent).
+  (10) Admin Product CRUD: POST /api/admin/products creates product; GET /api/products/{slug} returns it; DELETE /api/admin/products/{slug} removes it; GET after delete returns 404.
+  (11) Wishlist Lookup: GET /api/wishlist/lookup?slugs=error-hoodie,404-oversized-tee returns 2 products with matching slugs.
+  (12) Node Syntax: All 5 files passed syntax check (route.js, auth.js, session.js, seed.js, mongo.js).
+  (13) Coupon Deletion: DELETE /api/admin/coupons/{id} successfully removes coupons.
+  No application code modified. All critical backend functionality verified and working correctly."
+
+## Testing Agent Communication (sequence 7)
+- agent: "testing"
+- message: "Backend test suite complete. All 13 comprehensive tests passed covering auth (signup, login, admin, /me), admin endpoints authorization, coupon CRUD and validation math (percent/flat/capping), order creation with coupon and loyalty redemption, idempotent delivery loyalty credit, admin product CRUD, wishlist lookup, and Node syntax checks. No critical issues found. Backend task marked working:true and needs_retesting:false."

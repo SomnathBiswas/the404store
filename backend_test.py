@@ -1,517 +1,527 @@
 #!/usr/bin/env python3
 """
-Backend API Test Suite for THE 404 STORE
-Tests MongoDB-backed endpoints at the configured public URL
+Comprehensive backend API test suite for THE 404 STORE
+Tests auth, admin, coupons, loyalty, orders, products, wishlist
 """
 import requests
-import sys
 import json
-from typing import Dict, Any
+import time
+from datetime import datetime, timedelta
 
-# Load base URL from .env
 BASE_URL = "https://not-found-style.preview.emergentagent.com/api"
+ADMIN_EMAIL = "admin@404store.com"
+ADMIN_PASSWORD = "admin404"
 
-def test_get_products():
-    """Test GET /api/products - should return 15 products with UUID ids"""
-    print("\n=== TEST 1: GET /api/products ===")
-    try:
-        response = requests.get(f"{BASE_URL}/products", timeout=10)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            print(f"❌ FAILED: Expected 200, got {response.status_code}")
-            return False
-        
-        data = response.json()
-        
-        # Check structure
-        if 'products' not in data or 'count' not in data or 'categories' not in data:
-            print(f"❌ FAILED: Missing required keys. Got: {list(data.keys())}")
-            return False
-        
-        products = data['products']
-        count = data['count']
-        categories = data['categories']
-        
-        print(f"Products count: {count}")
-        print(f"Categories: {categories}")
-        
-        # Should have 15 products after seeding
-        if count != 15:
-            print(f"❌ FAILED: Expected 15 products, got {count}")
-            return False
-        
-        # Check first product structure
-        if products:
-            p = products[0]
-            required_fields = ['id', 'slug', 'name', 'price', 'sizes', 'image', 'category']
-            missing = [f for f in required_fields if f not in p]
-            if missing:
-                print(f"❌ FAILED: Product missing fields: {missing}")
-                return False
-            
-            # Verify UUID format (basic check)
-            if not isinstance(p['id'], str) or len(p['id']) < 32:
-                print(f"❌ FAILED: Product id doesn't look like UUID: {p['id']}")
-                return False
-            
-            # Verify category is one of the expected
-            expected_cats = ['Shirt', 'Tshirt', 'Jeans', 'Newdrop', 'Sale']
-            if p['category'] not in expected_cats:
-                print(f"❌ FAILED: Unexpected category: {p['category']}")
-                return False
-            
-            print(f"Sample product: {p['name']} ({p['category']}) - ${p['price']/100:.2f}")
-        
-        print("✅ PASSED: GET /api/products returns correct structure with 15 products")
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        return False
+# Test state
+customer_token = None
+customer_user = None
+admin_token = None
+coupon_id_percent = None
+coupon_id_flat = None
+test_product_slug = "test-product-404"
+order_id_for_delivery = None
 
+def log(msg):
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
-def test_category_filters():
-    """Test GET /api/products?category=<X> for each category"""
-    print("\n=== TEST 2: Category Filters ===")
-    categories = ['Shirt', 'Tshirt', 'Jeans', 'Newdrop', 'Sale']
-    all_passed = True
+def test_auth_signup():
+    """Test 1: POST /api/auth/signup - create customer account"""
+    global customer_token, customer_user
+    log("TEST 1: Auth signup")
     
-    for cat in categories:
-        try:
-            response = requests.get(f"{BASE_URL}/products?category={cat}", timeout=10)
-            print(f"\nCategory: {cat} - Status: {response.status_code}")
-            
-            if response.status_code != 200:
-                print(f"❌ FAILED: Expected 200, got {response.status_code}")
-                all_passed = False
-                continue
-            
-            data = response.json()
-            products = data.get('products', [])
-            count = len(products)
-            
-            print(f"  Products returned: {count}")
-            
-            # Each category should have exactly 3 products
-            if count != 3:
-                print(f"❌ FAILED: Expected 3 products for {cat}, got {count}")
-                all_passed = False
-                continue
-            
-            # Verify all products match the category
-            for p in products:
-                if p['category'].lower() != cat.lower():
-                    print(f"❌ FAILED: Product {p['name']} has category {p['category']}, expected {cat}")
-                    all_passed = False
-                    break
-            else:
-                print(f"✅ PASSED: {cat} returns 3 matching products")
-                
-        except Exception as e:
-            print(f"❌ FAILED: Exception for {cat} - {e}")
-            all_passed = False
+    # Create unique email
+    email = f"customer{int(time.time())}@404test.com"
+    payload = {
+        "name": "Test Customer",
+        "email": email,
+        "password": "test1234"
+    }
     
-    return all_passed
-
-
-def test_search_query():
-    """Test GET /api/products?q=hoodie - should return Error Hoodie"""
-    print("\n=== TEST 3: Search Query (q=hoodie) ===")
-    try:
-        response = requests.get(f"{BASE_URL}/products?q=hoodie", timeout=10)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            print(f"❌ FAILED: Expected 200, got {response.status_code}")
-            return False
-        
-        data = response.json()
-        products = data.get('products', [])
-        
-        print(f"Products found: {len(products)}")
-        
-        # Should find Error Hoodie
-        hoodie_found = False
-        for p in products:
-            print(f"  - {p['name']} (slug: {p['slug']})")
-            if p['slug'] == 'error-hoodie':
-                hoodie_found = True
-        
-        if not hoodie_found:
-            print(f"❌ FAILED: Error Hoodie not found in search results")
-            return False
-        
-        print("✅ PASSED: Search returns Error Hoodie")
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        return False
-
-
-def test_sorting():
-    """Test GET /api/products?sort=price-asc/price-desc/newest"""
-    print("\n=== TEST 4: Sorting ===")
-    all_passed = True
+    resp = requests.post(f"{BASE_URL}/auth/signup", json=payload)
+    assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.text}"
     
-    # Test price-asc
-    try:
-        response = requests.get(f"{BASE_URL}/products?sort=price-asc", timeout=10)
-        print(f"\nSort: price-asc - Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            products = data.get('products', [])
-            prices = [p['price'] for p in products]
-            
-            if prices == sorted(prices):
-                print(f"✅ PASSED: price-asc sorts correctly")
-                print(f"  Price range: ${prices[0]/100:.2f} to ${prices[-1]/100:.2f}")
-            else:
-                print(f"❌ FAILED: price-asc not sorted correctly")
-                print(f"  Prices: {[p/100 for p in prices[:5]]}")
-                all_passed = False
-        else:
-            print(f"❌ FAILED: Expected 200, got {response.status_code}")
-            all_passed = False
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        all_passed = False
+    data = resp.json()
+    assert data.get("ok") == True, "Expected ok:true"
+    assert "token" in data, "Expected token in response"
+    assert "user" in data, "Expected user in response"
+    assert data["user"]["email"] == email.lower(), "Email should be lowercase"
+    assert data["user"]["loyaltyPoints"] == 0, "New user should have 0 loyalty points"
+    assert data["user"]["role"] == "customer", "Role should be customer"
     
-    # Test price-desc
-    try:
-        response = requests.get(f"{BASE_URL}/products?sort=price-desc", timeout=10)
-        print(f"\nSort: price-desc - Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            products = data.get('products', [])
-            prices = [p['price'] for p in products]
-            
-            if prices == sorted(prices, reverse=True):
-                print(f"✅ PASSED: price-desc sorts correctly")
-                print(f"  Price range: ${prices[0]/100:.2f} to ${prices[-1]/100:.2f}")
-            else:
-                print(f"❌ FAILED: price-desc not sorted correctly")
-                print(f"  Prices: {[p/100 for p in prices[:5]]}")
-                all_passed = False
-        else:
-            print(f"❌ FAILED: Expected 200, got {response.status_code}")
-            all_passed = False
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        all_passed = False
+    customer_token = data["token"]
+    customer_user = data["user"]
+    log(f"✅ Signup successful: {customer_user['email']}, loyaltyPoints={customer_user['loyaltyPoints']}")
     
-    # Test newest
-    try:
-        response = requests.get(f"{BASE_URL}/products?sort=newest", timeout=10)
-        print(f"\nSort: newest - Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            products = data.get('products', [])
-            print(f"✅ PASSED: newest sort returns {len(products)} products")
-        else:
-            print(f"❌ FAILED: Expected 200, got {response.status_code}")
-            all_passed = False
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        all_passed = False
+    # Test duplicate email
+    resp2 = requests.post(f"{BASE_URL}/auth/signup", json=payload)
+    assert resp2.status_code == 400, f"Duplicate email should return 400, got {resp2.status_code}"
+    log("✅ Duplicate email correctly returns 400")
+
+def test_auth_login_customer():
+    """Test 2: POST /api/auth/login - customer login"""
+    log("TEST 2: Customer login")
     
-    return all_passed
-
-
-def test_product_detail():
-    """Test GET /api/products/error-hoodie - should return product + related"""
-    print("\n=== TEST 5: Product Detail (error-hoodie) ===")
-    try:
-        response = requests.get(f"{BASE_URL}/products/error-hoodie", timeout=10)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            print(f"❌ FAILED: Expected 200, got {response.status_code}")
-            return False
-        
-        data = response.json()
-        
-        if 'product' not in data or 'related' not in data:
-            print(f"❌ FAILED: Missing required keys. Got: {list(data.keys())}")
-            return False
-        
-        product = data['product']
-        related = data['related']
-        
-        print(f"Product: {product['name']} ({product['category']})")
-        print(f"Related products: {len(related)}")
-        
-        # Verify product is Error Hoodie
-        if product['slug'] != 'error-hoodie':
-            print(f"❌ FAILED: Expected error-hoodie, got {product['slug']}")
-            return False
-        
-        # Related should be from same category (Newdrop) but not same slug
-        if len(related) > 4:
-            print(f"❌ FAILED: Related should be max 4, got {len(related)}")
-            return False
-        
-        for r in related:
-            if r['slug'] == 'error-hoodie':
-                print(f"❌ FAILED: Related includes the same product")
-                return False
-            if r['category'] != 'Newdrop':
-                print(f"❌ FAILED: Related product {r['name']} not in same category")
-                return False
-            print(f"  - {r['name']}")
-        
-        print("✅ PASSED: Product detail returns correct structure")
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        return False
-
-
-def test_product_not_found():
-    """Test GET /api/products/does-not-exist - should return 404"""
-    print("\n=== TEST 6: Product Not Found ===")
-    try:
-        response = requests.get(f"{BASE_URL}/products/does-not-exist", timeout=10)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 404:
-            print(f"❌ FAILED: Expected 404, got {response.status_code}")
-            return False
-        
-        data = response.json()
-        if 'error' not in data:
-            print(f"❌ FAILED: Expected error message in response")
-            return False
-        
-        print(f"Error message: {data['error']}")
-        print("✅ PASSED: Non-existent product returns 404")
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        return False
-
-
-def test_newsletter():
-    """Test POST /api/newsletter with valid and invalid emails"""
-    print("\n=== TEST 7: Newsletter Subscription ===")
-    all_passed = True
+    payload = {
+        "email": customer_user["email"],
+        "password": "test1234"
+    }
     
-    # Test valid email
-    try:
-        response = requests.post(
-            f"{BASE_URL}/newsletter",
-            json={"email": "test@example.com"},
-            timeout=10
-        )
-        print(f"\nValid email - Status: {response.status_code}")
-        
-        if response.status_code != 201:
-            print(f"❌ FAILED: Expected 201, got {response.status_code}")
-            all_passed = False
-        else:
-            data = response.json()
-            if data.get('ok') != True:
-                print(f"❌ FAILED: Expected ok: true, got {data}")
-                all_passed = False
-            else:
-                print("✅ PASSED: Valid email returns 201")
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        all_passed = False
+    resp = requests.post(f"{BASE_URL}/auth/login", json=payload)
+    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
     
-    # Test missing email
-    try:
-        response = requests.post(
-            f"{BASE_URL}/newsletter",
-            json={},
-            timeout=10
-        )
-        print(f"\nMissing email - Status: {response.status_code}")
-        
-        if response.status_code != 400:
-            print(f"❌ FAILED: Expected 400, got {response.status_code}")
-            all_passed = False
-        else:
-            print("✅ PASSED: Missing email returns 400")
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        all_passed = False
+    data = resp.json()
+    assert data.get("ok") == True, "Expected ok:true"
+    assert "token" in data, "Expected token"
+    assert data["user"]["email"] == customer_user["email"], "Email should match"
+    log(f"✅ Customer login successful")
     
-    # Test invalid email
-    try:
-        response = requests.post(
-            f"{BASE_URL}/newsletter",
-            json={"email": "notanemail"},
-            timeout=10
-        )
-        print(f"\nInvalid email - Status: {response.status_code}")
-        
-        if response.status_code != 400:
-            print(f"❌ FAILED: Expected 400, got {response.status_code}")
-            all_passed = False
-        else:
-            print("✅ PASSED: Invalid email returns 400")
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        all_passed = False
+    # Test wrong password
+    wrong_payload = {
+        "email": customer_user["email"],
+        "password": "wrongpassword"
+    }
+    resp2 = requests.post(f"{BASE_URL}/auth/login", json=wrong_payload)
+    assert resp2.status_code == 401, f"Wrong password should return 401, got {resp2.status_code}"
+    log("✅ Wrong password correctly returns 401")
+
+def test_auth_login_admin():
+    """Test 3: POST /api/auth/login - admin login"""
+    global admin_token
+    log("TEST 3: Admin login")
     
-    return all_passed
+    payload = {
+        "email": ADMIN_EMAIL,
+        "password": ADMIN_PASSWORD
+    }
+    
+    resp = requests.post(f"{BASE_URL}/auth/login", json=payload)
+    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+    
+    data = resp.json()
+    assert data.get("ok") == True, "Expected ok:true"
+    assert "token" in data, "Expected token"
+    assert data["user"]["role"] == "admin", f"Expected role=admin, got {data['user'].get('role')}"
+    assert data["user"]["email"] == ADMIN_EMAIL.lower(), "Admin email should match"
+    
+    admin_token = data["token"]
+    log(f"✅ Admin login successful, role={data['user']['role']}")
 
+def test_auth_me():
+    """Test 4: GET /api/auth/me - verify token"""
+    log("TEST 4: Auth /me endpoint")
+    
+    # Valid customer token
+    headers = {"Authorization": f"Bearer {customer_token}"}
+    resp = requests.get(f"{BASE_URL}/auth/me", headers=headers)
+    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+    
+    data = resp.json()
+    assert "user" in data, "Expected user in response"
+    assert data["user"]["email"] == customer_user["email"], "Email should match"
+    log(f"✅ /me with valid token returns user")
+    
+    # Invalid token
+    bad_headers = {"Authorization": "Bearer invalid.token.here"}
+    resp2 = requests.get(f"{BASE_URL}/auth/me", headers=bad_headers)
+    assert resp2.status_code == 401, f"Invalid token should return 401, got {resp2.status_code}"
+    log("✅ /me with invalid token returns 401")
+    
+    # No token
+    resp3 = requests.get(f"{BASE_URL}/auth/me")
+    assert resp3.status_code == 401, f"No token should return 401, got {resp3.status_code}"
+    log("✅ /me with no token returns 401")
 
-def test_orders():
-    """Test POST /api/orders with items and total"""
-    print("\n=== TEST 8: Create Order ===")
-    try:
-        order_data = {
-            "items": [
-                {"slug": "error-hoodie", "quantity": 1, "price": 2499}
-            ],
-            "total": 2499
-        }
+def test_admin_endpoints_require_admin():
+    """Test 5: Admin endpoints require admin token"""
+    log("TEST 5: Admin endpoints authorization")
+    
+    endpoints = [
+        "/admin/products",
+        "/admin/coupons",
+        "/admin/orders",
+        "/admin/users",
+        "/admin/stats"
+    ]
+    
+    for endpoint in endpoints:
+        # No token
+        resp1 = requests.get(f"{BASE_URL}{endpoint}")
+        assert resp1.status_code == 401, f"{endpoint} with no token should return 401, got {resp1.status_code}"
         
-        response = requests.post(
-            f"{BASE_URL}/orders",
-            json=order_data,
-            timeout=10
-        )
-        print(f"Status: {response.status_code}")
+        # Customer token
+        headers = {"Authorization": f"Bearer {customer_token}"}
+        resp2 = requests.get(f"{BASE_URL}{endpoint}", headers=headers)
+        assert resp2.status_code == 401, f"{endpoint} with customer token should return 401, got {resp2.status_code}"
         
-        if response.status_code != 201:
-            print(f"❌ FAILED: Expected 201, got {response.status_code}")
-            return False
+        # Admin token
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        resp3 = requests.get(f"{BASE_URL}{endpoint}", headers=admin_headers)
+        assert resp3.status_code == 200, f"{endpoint} with admin token should return 200, got {resp3.status_code}"
         
-        data = response.json()
-        
-        if 'order' not in data or 'id' not in data['order']:
-            print(f"❌ FAILED: Missing order or order.id in response")
-            return False
-        
-        order_id = data['order']['id']
-        print(f"Order ID: {order_id}")
-        
-        # Verify UUID format
-        if not isinstance(order_id, str) or len(order_id) < 32:
-            print(f"❌ FAILED: Order id doesn't look like UUID: {order_id}")
-            return False
-        
-        print("✅ PASSED: Order created with UUID id")
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        return False
+        log(f"✅ {endpoint}: 401 for customer/none, 200 for admin")
 
+def test_admin_coupons_crud():
+    """Test 6: Admin coupon CRUD operations"""
+    global coupon_id_percent, coupon_id_flat
+    log("TEST 6: Admin coupon CRUD")
+    
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    
+    # Create percent coupon
+    percent_payload = {
+        "code": "TEST10",
+        "type": "percent",
+        "value": 10,
+        "minOrder": 1000,
+        "expiresAt": (datetime.now() + timedelta(days=30)).isoformat()
+    }
+    resp1 = requests.post(f"{BASE_URL}/admin/coupons", json=percent_payload, headers=admin_headers)
+    assert resp1.status_code == 201, f"Expected 201, got {resp1.status_code}: {resp1.text}"
+    data1 = resp1.json()
+    assert "coupon" in data1, "Expected coupon in response"
+    assert "id" in data1["coupon"], "Expected UUID id"
+    assert data1["coupon"]["code"] == "TEST10", "Code should be TEST10"
+    assert data1["coupon"]["type"] == "percent", "Type should be percent"
+    coupon_id_percent = data1["coupon"]["id"]
+    log(f"✅ Created percent coupon: {coupon_id_percent}")
+    
+    # Create flat coupon
+    flat_payload = {
+        "code": "FLAT200",
+        "type": "flat",
+        "value": 200,
+        "minOrder": 500
+    }
+    resp2 = requests.post(f"{BASE_URL}/admin/coupons", json=flat_payload, headers=admin_headers)
+    assert resp2.status_code == 201, f"Expected 201, got {resp2.status_code}: {resp2.text}"
+    data2 = resp2.json()
+    coupon_id_flat = data2["coupon"]["id"]
+    log(f"✅ Created flat coupon: {coupon_id_flat}")
+    
+    # List coupons
+    resp3 = requests.get(f"{BASE_URL}/admin/coupons", headers=admin_headers)
+    assert resp3.status_code == 200, f"Expected 200, got {resp3.status_code}"
+    data3 = resp3.json()
+    assert "coupons" in data3, "Expected coupons array"
+    assert len(data3["coupons"]) >= 2, "Should have at least 2 coupons"
+    log(f"✅ Listed coupons: {len(data3['coupons'])} total")
+    
+    # Toggle active
+    toggle_payload = {"active": False}
+    resp4 = requests.put(f"{BASE_URL}/admin/coupons/{coupon_id_percent}", json=toggle_payload, headers=admin_headers)
+    assert resp4.status_code == 200, f"Expected 200, got {resp4.status_code}"
+    data4 = resp4.json()
+    assert data4["coupon"]["active"] == False, "Coupon should be inactive"
+    log(f"✅ Toggled coupon to inactive")
+    
+    # Toggle back to active
+    toggle_back = {"active": True}
+    resp5 = requests.put(f"{BASE_URL}/admin/coupons/{coupon_id_percent}", json=toggle_back, headers=admin_headers)
+    assert resp5.status_code == 200, f"Expected 200, got {resp5.status_code}"
+    log(f"✅ Toggled coupon back to active")
 
-def test_seed():
-    """Test GET /api/seed - should return ok: true"""
-    print("\n=== TEST 9: Seed Endpoint ===")
-    try:
-        response = requests.get(f"{BASE_URL}/seed", timeout=10)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            print(f"❌ FAILED: Expected 200, got {response.status_code}")
-            return False
-        
-        data = response.json()
-        
-        if 'ok' not in data or data['ok'] != True:
-            print(f"❌ FAILED: Expected ok: true, got {data}")
-            return False
-        
-        print(f"Seeded: {data.get('seeded')}")
-        print(f"Count: {data.get('count')}")
-        
-        if data.get('count') != 15:
-            print(f"❌ FAILED: Expected count 15, got {data.get('count')}")
-            return False
-        
-        print("✅ PASSED: Seed endpoint returns ok: true with count 15")
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAILED: Exception - {e}")
-        return False
+def test_coupon_validate():
+    """Test 7: GET /api/coupons/validate - coupon validation and math"""
+    log("TEST 7: Coupon validation")
+    
+    # Percent coupon: 10% of 2499 = 250 (rounded)
+    resp1 = requests.get(f"{BASE_URL}/coupons/validate?code=TEST10&subtotal=2499")
+    assert resp1.status_code == 200, f"Expected 200, got {resp1.status_code}: {resp1.text}"
+    data1 = resp1.json()
+    expected_discount = round(2499 * 10 / 100)  # 250
+    assert data1["discount"] == expected_discount, f"Expected discount {expected_discount}, got {data1['discount']}"
+    assert data1["coupon"]["code"] == "TEST10", "Coupon code should match"
+    log(f"✅ Percent coupon: 10% of ₹2499 = ₹{data1['discount']}")
+    
+    # Flat coupon: min(200, 1500) = 200
+    resp2 = requests.get(f"{BASE_URL}/coupons/validate?code=FLAT200&subtotal=1500")
+    assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}"
+    data2 = resp2.json()
+    assert data2["discount"] == 200, f"Expected discount 200, got {data2['discount']}"
+    log(f"✅ Flat coupon: min(200, 1500) = ₹{data2['discount']}")
+    
+    # Flat coupon with subtotal < value but > minOrder: min(200, 150) = 150
+    # First create a coupon without minOrder for this test
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    small_flat = {
+        "code": "FLAT150TEST",
+        "type": "flat",
+        "value": 150,
+        "minOrder": 0
+    }
+    resp_create = requests.post(f"{BASE_URL}/admin/coupons", json=small_flat, headers=admin_headers)
+    small_coupon_id = resp_create.json()["coupon"]["id"]
+    
+    resp3 = requests.get(f"{BASE_URL}/coupons/validate?code=FLAT150TEST&subtotal=100")
+    assert resp3.status_code == 200, f"Expected 200, got {resp3.status_code}"
+    data3 = resp3.json()
+    assert data3["discount"] == 100, f"Expected discount 100 (capped at subtotal), got {data3['discount']}"
+    log(f"✅ Flat coupon capped: min(150, 100) = ₹{data3['discount']}")
+    
+    # Clean up
+    requests.delete(f"{BASE_URL}/admin/coupons/{small_coupon_id}", headers=admin_headers)
+    
+    # Below minOrder (TEST10 requires 1000)
+    resp4 = requests.get(f"{BASE_URL}/coupons/validate?code=TEST10&subtotal=500")
+    assert resp4.status_code == 400, f"Below minOrder should return 400, got {resp4.status_code}"
+    log(f"✅ Below minOrder correctly returns 400")
+    
+    # Inactive coupon - first deactivate
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    requests.put(f"{BASE_URL}/admin/coupons/{coupon_id_flat}", json={"active": False}, headers=admin_headers)
+    resp5 = requests.get(f"{BASE_URL}/coupons/validate?code=FLAT200&subtotal=1000")
+    assert resp5.status_code == 400, f"Inactive coupon should return 400, got {resp5.status_code}"
+    log(f"✅ Inactive coupon correctly returns 400")
+    
+    # Reactivate for later tests
+    requests.put(f"{BASE_URL}/admin/coupons/{coupon_id_flat}", json={"active": True}, headers=admin_headers)
 
+def test_order_creation_with_coupon_and_loyalty():
+    """Test 8: POST /api/orders - order with coupon and loyalty redemption"""
+    global order_id_for_delivery, customer_user
+    log("TEST 8: Order creation with coupon and loyalty")
+    
+    # First, give customer some loyalty points
+    # We'll create and deliver an order to earn points
+    headers = {"Authorization": f"Bearer {customer_token}"}
+    
+    # Create first order to earn points
+    order1_payload = {
+        "items": [
+            {"name": "Test Product", "price": 1000, "quantity": 1, "size": "M"}
+        ]
+    }
+    resp1 = requests.post(f"{BASE_URL}/orders", json=order1_payload, headers=headers)
+    assert resp1.status_code == 201, f"Expected 201, got {resp1.status_code}: {resp1.text}"
+    data1 = resp1.json()
+    first_order_id = data1["order"]["id"]
+    assert data1["order"]["subtotal"] == 1000, "Subtotal should be 1000"
+    assert data1["order"]["total"] == 1000, "Total should be 1000"
+    assert data1["order"]["pointsEarned"] == 100, "Should earn 100 points"
+    log(f"✅ Created first order: {first_order_id}, pointsEarned=100")
+    
+    # Deliver the order to credit points
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    resp2 = requests.put(f"{BASE_URL}/admin/orders/{first_order_id}", json={"status": "delivered"}, headers=admin_headers)
+    assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}"
+    log(f"✅ Delivered first order, customer should now have 100 points")
+    
+    # Verify customer has 100 points
+    resp3 = requests.get(f"{BASE_URL}/auth/me", headers=headers)
+    data3 = resp3.json()
+    customer_user = data3["user"]
+    assert customer_user["loyaltyPoints"] == 100, f"Expected 100 points, got {customer_user['loyaltyPoints']}"
+    log(f"✅ Customer now has {customer_user['loyaltyPoints']} loyalty points")
+    
+    # Create order with coupon and loyalty redemption
+    # Subtotal: 2500, Coupon TEST10 (10%): -250, Loyalty 100pts (₹25): -25, Total: 2225
+    order2_payload = {
+        "items": [
+            {"name": "Premium Product", "price": 2500, "quantity": 1, "size": "L"}
+        ],
+        "couponCode": "TEST10",
+        "redeemPoints": 100
+    }
+    resp4 = requests.post(f"{BASE_URL}/orders", json=order2_payload, headers=headers)
+    assert resp4.status_code == 201, f"Expected 201, got {resp4.status_code}: {resp4.text}"
+    data4 = resp4.json()
+    order_id_for_delivery = data4["order"]["id"]
+    
+    assert data4["order"]["subtotal"] == 2500, f"Expected subtotal 2500, got {data4['order']['subtotal']}"
+    assert data4["order"]["couponDiscount"] == 250, f"Expected coupon discount 250, got {data4['order']['couponDiscount']}"
+    assert data4["order"]["pointsRedeemed"] == 100, f"Expected pointsRedeemed 100, got {data4['order']['pointsRedeemed']}"
+    assert data4["order"]["pointsDiscount"] == 25, f"Expected pointsDiscount 25, got {data4['order']['pointsDiscount']}"
+    assert data4["order"]["total"] == 2225, f"Expected total 2225, got {data4['order']['total']}"
+    assert data4["order"]["pointsEarned"] == 100, "Should earn 100 points on delivery"
+    log(f"✅ Order created: subtotal=2500, coupon=-250, loyalty=-25, total=2225")
+    
+    # Verify customer points decreased immediately
+    resp5 = requests.get(f"{BASE_URL}/auth/me", headers=headers)
+    data5 = resp5.json()
+    assert data5["user"]["loyaltyPoints"] == 0, f"Expected 0 points after redemption, got {data5['user']['loyaltyPoints']}"
+    log(f"✅ Customer points decreased immediately to {data5['user']['loyaltyPoints']}")
+
+def test_order_delivery_loyalty_credit():
+    """Test 9: PUT /api/admin/orders/{id} - delivery credits loyalty once"""
+    log("TEST 9: Order delivery loyalty credit (idempotent)")
+    
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    customer_headers = {"Authorization": f"Bearer {customer_token}"}
+    
+    # Deliver the order
+    resp1 = requests.put(f"{BASE_URL}/admin/orders/{order_id_for_delivery}", json={"status": "delivered"}, headers=admin_headers)
+    assert resp1.status_code == 200, f"Expected 200, got {resp1.status_code}: {resp1.text}"
+    log(f"✅ Delivered order {order_id_for_delivery}")
+    
+    # Check customer points (should be 100 now)
+    resp2 = requests.get(f"{BASE_URL}/auth/me", headers=customer_headers)
+    data2 = resp2.json()
+    points_after_first = data2["user"]["loyaltyPoints"]
+    assert points_after_first == 100, f"Expected 100 points after delivery, got {points_after_first}"
+    log(f"✅ Customer has {points_after_first} points after first delivery")
+    
+    # Deliver again (should not double credit)
+    resp3 = requests.put(f"{BASE_URL}/admin/orders/{order_id_for_delivery}", json={"status": "delivered"}, headers=admin_headers)
+    assert resp3.status_code == 200, f"Expected 200, got {resp3.status_code}"
+    log(f"✅ Delivered order again (idempotent test)")
+    
+    # Check customer points (should still be 100)
+    resp4 = requests.get(f"{BASE_URL}/auth/me", headers=customer_headers)
+    data4 = resp4.json()
+    points_after_second = data4["user"]["loyaltyPoints"]
+    assert points_after_second == 100, f"Expected 100 points (no double credit), got {points_after_second}"
+    log(f"✅ Customer still has {points_after_second} points (no double credit)")
+
+def test_admin_products_crud():
+    """Test 10: Admin product CRUD"""
+    log("TEST 10: Admin product CRUD")
+    
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    
+    # Create product
+    product_payload = {
+        "name": "Test 404 Product",
+        "slug": test_product_slug,
+        "price": 1999,
+        "category": "Tshirt",
+        "color": "Black",
+        "description": "Test product for API testing"
+    }
+    resp1 = requests.post(f"{BASE_URL}/admin/products", json=product_payload, headers=admin_headers)
+    assert resp1.status_code == 201, f"Expected 201, got {resp1.status_code}: {resp1.text}"
+    data1 = resp1.json()
+    assert "product" in data1, "Expected product in response"
+    assert data1["product"]["slug"] == test_product_slug, "Slug should match"
+    log(f"✅ Created product: {test_product_slug}")
+    
+    # Get product by slug
+    resp2 = requests.get(f"{BASE_URL}/products/{test_product_slug}")
+    assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}"
+    data2 = resp2.json()
+    assert "product" in data2, "Expected product in response"
+    assert data2["product"]["slug"] == test_product_slug, "Slug should match"
+    log(f"✅ Retrieved product: {test_product_slug}")
+    
+    # Delete product
+    resp3 = requests.delete(f"{BASE_URL}/admin/products/{test_product_slug}", headers=admin_headers)
+    assert resp3.status_code == 200, f"Expected 200, got {resp3.status_code}"
+    log(f"✅ Deleted product: {test_product_slug}")
+    
+    # Verify deletion
+    resp4 = requests.get(f"{BASE_URL}/products/{test_product_slug}")
+    assert resp4.status_code == 404, f"Deleted product should return 404, got {resp4.status_code}"
+    log(f"✅ Verified product deletion (404)")
+
+def test_wishlist_lookup():
+    """Test 11: GET /api/wishlist/lookup?slugs=a,b"""
+    log("TEST 11: Wishlist lookup")
+    
+    # Get some real product slugs first
+    resp1 = requests.get(f"{BASE_URL}/products?limit=3")
+    assert resp1.status_code == 200, f"Expected 200, got {resp1.status_code}"
+    data1 = resp1.json()
+    products = data1["products"]
+    assert len(products) >= 2, "Need at least 2 products"
+    
+    slug1 = products[0]["slug"]
+    slug2 = products[1]["slug"]
+    
+    # Lookup by slugs
+    resp2 = requests.get(f"{BASE_URL}/wishlist/lookup?slugs={slug1},{slug2}")
+    assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}"
+    data2 = resp2.json()
+    assert "products" in data2, "Expected products array"
+    assert len(data2["products"]) == 2, f"Expected 2 products, got {len(data2['products'])}"
+    
+    returned_slugs = [p["slug"] for p in data2["products"]]
+    assert slug1 in returned_slugs, f"Expected {slug1} in results"
+    assert slug2 in returned_slugs, f"Expected {slug2} in results"
+    log(f"✅ Wishlist lookup returned {len(data2['products'])} products for slugs: {slug1}, {slug2}")
 
 def test_node_syntax():
-    """Test Node syntax of route.js, seed.js, mongo.js"""
-    print("\n=== TEST 10: Node Syntax Check ===")
+    """Test 12: Node syntax check"""
+    log("TEST 12: Node syntax check")
+    
     import subprocess
     
     files = [
         "/app/app/api/[[...path]]/route.js",
+        "/app/lib/auth.js",
+        "/app/lib/session.js",
         "/app/lib/seed.js",
         "/app/lib/mongo.js"
     ]
     
-    all_passed = True
-    
     for file_path in files:
+        result = subprocess.run(
+            ["node", "--check", file_path],
+            capture_output=True,
+            text=True
+        )
+        assert result.returncode == 0, f"Syntax error in {file_path}: {result.stderr}"
+        log(f"✅ Syntax check passed: {file_path}")
+
+def test_coupon_delete():
+    """Test 13: DELETE /api/admin/coupons/{id}"""
+    log("TEST 13: Delete coupons")
+    
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    
+    # Delete percent coupon
+    resp1 = requests.delete(f"{BASE_URL}/admin/coupons/{coupon_id_percent}", headers=admin_headers)
+    assert resp1.status_code == 200, f"Expected 200, got {resp1.status_code}"
+    log(f"✅ Deleted percent coupon: {coupon_id_percent}")
+    
+    # Delete flat coupon
+    resp2 = requests.delete(f"{BASE_URL}/admin/coupons/{coupon_id_flat}", headers=admin_headers)
+    assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}"
+    log(f"✅ Deleted flat coupon: {coupon_id_flat}")
+
+def run_all_tests():
+    """Run all backend tests in sequence"""
+    print("\n" + "="*80)
+    print("THE 404 STORE - Comprehensive Backend API Test Suite")
+    print("="*80 + "\n")
+    
+    tests = [
+        ("Auth Signup", test_auth_signup),
+        ("Auth Login (Customer)", test_auth_login_customer),
+        ("Auth Login (Admin)", test_auth_login_admin),
+        ("Auth /me Endpoint", test_auth_me),
+        ("Admin Endpoints Authorization", test_admin_endpoints_require_admin),
+        ("Admin Coupon CRUD", test_admin_coupons_crud),
+        ("Coupon Validation & Math", test_coupon_validate),
+        ("Order with Coupon & Loyalty", test_order_creation_with_coupon_and_loyalty),
+        ("Order Delivery Loyalty Credit", test_order_delivery_loyalty_credit),
+        ("Admin Product CRUD", test_admin_products_crud),
+        ("Wishlist Lookup", test_wishlist_lookup),
+        ("Node Syntax Check", test_node_syntax),
+        ("Coupon Deletion", test_coupon_delete),
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for name, test_func in tests:
         try:
-            result = subprocess.run(
-                ["node", "--check", file_path],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            
-            if result.returncode == 0:
-                print(f"✅ PASSED: {file_path} - No syntax errors")
-            else:
-                print(f"❌ FAILED: {file_path} - Syntax errors:")
-                print(result.stderr)
-                all_passed = False
-                
+            test_func()
+            passed += 1
+            print(f"\n✅ PASSED: {name}\n")
+        except AssertionError as e:
+            failed += 1
+            print(f"\n❌ FAILED: {name}")
+            print(f"   Error: {str(e)}\n")
         except Exception as e:
-            print(f"❌ FAILED: {file_path} - Exception: {e}")
-            all_passed = False
+            failed += 1
+            print(f"\n❌ ERROR: {name}")
+            print(f"   Exception: {str(e)}\n")
     
-    return all_passed
-
-
-def main():
-    """Run all tests"""
-    print("=" * 70)
-    print("THE 404 STORE - Backend API Test Suite")
-    print(f"Testing against: {BASE_URL}")
-    print("=" * 70)
+    print("\n" + "="*80)
+    print(f"Test Results: {passed} passed, {failed} failed out of {len(tests)} total")
+    print("="*80 + "\n")
     
-    results = {
-        "GET /api/products": test_get_products(),
-        "Category Filters": test_category_filters(),
-        "Search Query": test_search_query(),
-        "Sorting": test_sorting(),
-        "Product Detail": test_product_detail(),
-        "Product Not Found": test_product_not_found(),
-        "Newsletter": test_newsletter(),
-        "Orders": test_orders(),
-        "Seed": test_seed(),
-        "Node Syntax": test_node_syntax(),
-    }
-    
-    print("\n" + "=" * 70)
-    print("TEST SUMMARY")
-    print("=" * 70)
-    
-    passed = sum(1 for v in results.values() if v)
-    total = len(results)
-    
-    for test_name, result in results.items():
-        status = "✅ PASSED" if result else "❌ FAILED"
-        print(f"{status}: {test_name}")
-    
-    print(f"\nTotal: {passed}/{total} tests passed")
-    print("=" * 70)
-    
-    return 0 if passed == total else 1
-
+    return failed == 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    success = run_all_tests()
+    exit(0 if success else 1)
