@@ -125,6 +125,24 @@ export async function GET(request, { params }) {
 
     if (root === 'seed') { const result = await ensureSeeded(true); return json({ ok: true, ...result }) }
 
+    // Public order tracking (no auth) — returns limited safe fields
+    if (root === 'track' && second) {
+      const db = await getDb()
+      const order = await db.collection('orders').findOne({ id: second })
+      if (!order) return json({ error: 'Order not found.' }, 404)
+      return json({ order: {
+        id: order.id,
+        status: order.status,
+        createdAt: order.createdAt,
+        deliveredAt: order.deliveredAt || null,
+        shippedAt: order.shippedAt || null,
+        items: order.items?.map((i) => ({ slug: i.slug, name: i.name, image: i.image, quantity: i.quantity, size: i.size, price: i.price })) || [],
+        total: order.total,
+        customerName: order.userName || 'Customer',
+        pointsEarned: order.pointsEarned || 100,
+      } })
+    }
+
     return json({ error: 'Not found' }, 404)
   } catch (error) {
     console.error('GET error', error)
@@ -169,6 +187,35 @@ export async function POST(request, { params }) {
       const { password: _p, _id, ...safe } = user
       return json({ ok: true, token, user: safe })
     }
+
+    if (root === 'auth' && second === 'forgot') {
+      const { email } = body
+      if (!email) return json({ error: 'Email required.' }, 400)
+      const user = await db.collection('users').findOne({ email: String(email).toLowerCase() })
+      if (!user) return json({ error: 'No account found for this email.' }, 404)
+      // Generate 6-digit reset code
+      const code = Math.floor(100000 + Math.random() * 900000).toString()
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 min
+      await db.collection('users').updateOne({ id: user.id }, { $set: { resetCode: code, resetExpiresAt: expiresAt } })
+      // MVP: return the code directly (would normally email it)
+      return json({ ok: true, message: 'Reset code generated.', code, email: user.email })
+    }
+
+    if (root === 'auth' && second === 'reset') {
+      const { email, code, password } = body
+      if (!email || !code || !password) return json({ error: 'Email, code and new password required.' }, 400)
+      if (String(password).length < 4) return json({ error: 'Password too short.' }, 400)
+      const user = await db.collection('users').findOne({ email: String(email).toLowerCase() })
+      if (!user || !user.resetCode) return json({ error: 'Invalid reset request.' }, 400)
+      if (user.resetCode !== String(code)) return json({ error: 'Invalid reset code.' }, 400)
+      if (user.resetExpiresAt && new Date(user.resetExpiresAt) < new Date()) return json({ error: 'Reset code expired.' }, 400)
+      const hashed = await hashPassword(password)
+      await db.collection('users').updateOne({ id: user.id }, { $set: { password: hashed }, $unset: { resetCode: '', resetExpiresAt: '' } })
+      const token = signToken({ userId: user.id, role: 'customer' })
+      const { password: _p, _id, resetCode, resetExpiresAt, ...safe } = user
+      return json({ ok: true, token, user: { ...safe, password: undefined } })
+    }
+
 
     // Newsletter (public)
     if (root === 'newsletter') {
@@ -264,7 +311,10 @@ export async function PUT(request, { params }) {
         const status = body.status
         const before = await db.collection('orders').findOne({ id: third })
         if (!before) return json({ error: 'Order not found' }, 404)
-        await db.collection('orders').updateOne({ id: third }, { $set: { status } })
+        const setFields = { status }
+        if (status === 'shipped' && !before.shippedAt) setFields.shippedAt = new Date()
+        if (status === 'delivered' && !before.deliveredAt) setFields.deliveredAt = new Date()
+        await db.collection('orders').updateOne({ id: third }, { $set: setFields })
         // credit loyalty on delivery (only once)
         if (status === 'delivered' && before.status !== 'delivered' && before.userId) {
           await db.collection('users').updateOne({ id: before.userId }, { $inc: { loyaltyPoints: before.pointsEarned || 100 } })

@@ -30,9 +30,9 @@ export default function StoreNav({ activeCategory, onCategory, onSearch, onCart,
 
   return (
     <>
-      <header className={`fixed inset-x-0 top-0 z-40 transition-all duration-300 ${scrolled ? 'bg-[#f4f1eb]/95 backdrop-blur-md py-2 shadow-[0_1px_0_rgba(0,0,0,0.15)]' : 'bg-transparent py-4'}`}>
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-5 md:px-10">
-          <Link href="/" className={`font-black leading-[.78] tracking-[-.09em] transition-all ${scrolled ? 'text-[22px]' : 'text-[30px] md:text-[38px]'}`}>THE<br />404<br />STORE</Link>
+      <header className={`fixed inset-x-0 top-0 z-40 transition-all duration-300 ${scrolled ? 'bg-[#f4f1eb]/95 backdrop-blur-md py-2 shadow-[0_1px_0_rgba(0,0,0,0.15)]' : 'bg-gradient-to-b from-black/50 via-black/25 to-transparent py-3 md:py-4'}`}>
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 md:px-10">
+          <Link href="/" className={`font-black leading-[.78] tracking-[-.09em] transition-all ${scrolled ? 'text-[18px] text-black md:text-[22px]' : 'text-[20px] text-white md:text-[38px]'}`}>THE<br />404<br />STORE</Link>
           <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 md:flex">
             {NAV.map((item) => (
               <button key={item} type="button" onClick={() => handleCat(item)} className={`relative text-[13px] font-black uppercase tracking-[0.14em] transition ${activeCategory === item ? 'text-[#ff2d2d]' : 'hover:text-[#ff2d2d]'}`}>
@@ -41,9 +41,9 @@ export default function StoreNav({ activeCategory, onCategory, onSearch, onCart,
               </button>
             ))}
           </nav>
-          <div className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.14em] md:gap-5">
+          <div className={`flex items-center gap-2.5 text-[11px] font-black uppercase tracking-[0.14em] md:gap-5 ${scrolled ? 'text-black' : 'text-white md:text-black'}`}>
             <button type="button" onClick={() => (onSearch ? onSearch() : (window.location.href = '/'))} className="hidden items-center gap-2 md:flex hover:text-[#ff2d2d] transition"><Search size={16} /> Search</button>
-            <button type="button" aria-label="Search" onClick={() => (onSearch ? onSearch() : (window.location.href = '/'))} className="md:hidden"><Search size={18} /></button>
+            <button type="button" aria-label="Search" onClick={() => (onSearch ? onSearch() : (window.location.href = '/'))} className="md:hidden p-2"><Search size={20} /></button>
 
             {/* Profile */}
             <div className="relative hidden md:block">
@@ -78,9 +78,9 @@ export default function StoreNav({ activeCategory, onCategory, onSearch, onCart,
               )}
             </div>
 
-            <Link href="/wishlist" className="flex items-center gap-1 hover:text-[#ff2d2d] transition" aria-label="Wishlist"><Heart size={16} /> <span className="hidden md:inline">({wishlistCount})</span></Link>
-            <button type="button" onClick={() => (onCart ? onCart() : (window.location.href = '/'))} className="flex items-center gap-1.5 hover:text-[#ff2d2d] transition"><ShoppingBag size={17} /> <span className="hidden md:inline">Bag</span>({cartCount})</button>
-            <button type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)} className="md:hidden"><Menu size={22} /></button>
+            <Link href="/wishlist" className="flex items-center gap-1 hover:text-[#ff2d2d] transition p-2 md:p-0" aria-label="Wishlist"><Heart size={18} /> <span className="hidden md:inline">({wishlistCount})</span></Link>
+            <button type="button" onClick={() => (onCart ? onCart() : (window.location.href = '/'))} className="flex items-center gap-1.5 hover:text-[#ff2d2d] transition p-2 md:p-0"><ShoppingBag size={19} /> <span className="hidden md:inline">Bag</span><span className="text-[10px] md:text-[11px]">({cartCount})</span></button>
+            <button type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)} className="md:hidden p-2"><Menu size={24} /></button>
           </div>
         </div>
       </header>

@@ -83,7 +83,10 @@ export default function AccountPage() {
                     </div>
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[11px] font-bold uppercase tracking-[0.14em]">
                       <span>Total {money(o.total)}</span>
-                      {o.status === 'delivered' && <span className="text-[#ff2d2d]">+{o.pointsEarned || 100} pts earned</span>}
+                      <div className="flex items-center gap-4">
+                        {o.status === 'delivered' && <span className="text-[#ff2d2d]">+{o.pointsEarned || 100} pts earned</span>}
+                        <Link href={`/track/${o.id}`} className="border-b border-black pb-0.5 hover:text-[#ff2d2d] hover:border-[#ff2d2d]">Track order ↗</Link>
+                      </div>
                     </div>
                   </div>
                 ))}

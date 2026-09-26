@@ -204,7 +204,8 @@ export default function AdminDashboard() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">#{o.id.slice(0, 8)} · {new Date(o.createdAt).toLocaleString()}</p>
                     <p className="mt-1 text-sm font-bold">{o.userName || 'Guest'} · {o.userEmail || '—'}</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a href={`/track/${o.id}`} target="_blank" rel="noreferrer" className="border border-[#ff2d2d] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#ff2d2d] hover:bg-[#ff2d2d] hover:text-white">Track ↗</a>
                     {['placed', 'shipped', 'delivered', 'cancelled'].map((s) => (
                       <button key={s} onClick={() => setOrderStatus(o.id, s)} className={`px-3 py-1 text-[9px] font-bold uppercase tracking-[0.16em] ${o.status === s ? (s === 'delivered' ? 'bg-[#ff2d2d]' : 'bg-white text-black') : 'border border-white/25'}`}>{s}</button>
                     ))}

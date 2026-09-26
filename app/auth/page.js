@@ -37,13 +37,13 @@ function AuthInner() {
   return (
     <main className="min-h-screen bg-[#f4f1eb] text-black selection:bg-[#ff2d2d] selection:text-white">
       <div className="mx-auto grid min-h-screen max-w-[1600px] gap-0 md:grid-cols-[1fr_1fr]">
-        <div className="relative hidden bg-[#0a0a0a] md:block">
+        <div className="relative hidden overflow-hidden bg-[#0a0a0a] md:block">
           <div className="absolute inset-0 flex flex-col justify-between p-12 text-white">
             <Link href="/" className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] hover:text-[#ff2d2d]"><ArrowLeft size={14} /> Back to store</Link>
             <div>
               <p className="mb-8 text-[10px] font-bold uppercase tracking-[0.3em] text-[#ff2d2d]">Members only / 404</p>
-              <h1 className="text-[clamp(80px,10vw,180px)] font-black uppercase leading-[.72] tracking-[-.1em]">You<br />are<br /><span className="text-[#ff2d2d]">not</span><br />found.</h1>
-              <p className="mt-10 max-w-md text-sm leading-[1.7] text-white/60">Sign in to keep your bag, unlock loyal 404 points, save fits to your wishlist and get early access to drops.</p>
+              <h1 className="text-[clamp(60px,7vw,140px)] font-black uppercase leading-[.78] tracking-[-.09em]">You<br />are<br /><span className="text-[#ff2d2d]">not</span><br />found.</h1>
+              <p className="mt-8 max-w-md text-sm leading-[1.7] text-white/60">Sign in to keep your bag, unlock loyal 404 points, save fits to your wishlist and get early access to drops.</p>
             </div>
             <p className="text-[9px] uppercase tracking-[0.2em] text-white/40">© 2026 THE 404 STORE</p>
           </div>
@@ -72,6 +72,7 @@ function AuthInner() {
             </div>
             {error && <p className="border border-[#ff2d2d] bg-[#ff2d2d]/10 p-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#ff2d2d]">{error}</p>}
             <button type="submit" disabled={busy} className="group flex w-full items-center justify-center gap-3 bg-black px-4 py-5 text-[11px] font-bold uppercase tracking-[0.22em] text-white transition hover:bg-[#ff2d2d] disabled:opacity-50">{busy ? 'Please wait…' : (mode === 'login' ? 'Enter the 404' : 'Create account')} <ArrowRight size={15} className="transition group-hover:translate-x-1" /></button>
+            {mode === 'login' && <Link href="/auth/forgot" className="block text-center text-[10px] font-bold uppercase tracking-[0.18em] text-black/60 hover:text-[#ff2d2d]">Forgot password?</Link>}
             <p className="pt-2 text-[10px] uppercase tracking-[0.15em] text-black/50">By continuing, you agree to be a little different.</p>
           </form>
         </div>

@@ -321,3 +321,66 @@
 ## Testing Agent Communication (sequence 7)
 - agent: "testing"
 - message: "Backend test suite complete. All 13 comprehensive tests passed covering auth (signup, login, admin, /me), admin endpoints authorization, coupon CRUD and validation math (percent/flat/capping), order creation with coupon and loyalty redemption, idempotent delivery loyalty credit, admin product CRUD, wishlist lookup, and Node syntax checks. No critical issues found. Backend task marked working:true and needs_retesting:false."
+
+## Backend v4: Public Order Tracking + Password Reset (sequence 8)
+- Added POST /api/auth/forgot (returns one-time 6-digit reset code, valid 15 min, stored on user)
+- Added POST /api/auth/reset (validates code+expiry, updates password, returns new session token)
+- Added GET /api/track/[orderId] — public endpoint, no auth, returns limited safe order fields (id, status, createdAt, shippedAt, deliveredAt, items, total, customerName, pointsEarned)
+- Admin order status update now records shippedAt and deliveredAt timestamps
+- Manual curl test PASSED: forgot returns code (298076), reset works, subsequent login with new password succeeds, /api/track/{id} returns status transitions correctly
+
+## Backend Retest Request (sequence 9)
+## - task: "Password reset + public order tracking"
+##   implemented: true
+##   working: true
+##   file: "/app/app/api/[[...path]]/route.js"
+##   stuck_count: 0
+##   priority: "high"
+##   needs_retesting: false
+##   status_history:
+##       - working: "NA"
+##         agent: "main"
+##         comment: "Please verify:
+##  (1) POST /api/auth/forgot with existing user email returns {ok:true, code:'6-digit', email}. Unknown email returns 404 with error.
+##  (2) POST /api/auth/reset with matching {email, code, password} returns {ok:true, token, user}. Invalid code returns 400. Missing fields returns 400. Same code cannot be reused (should be unset after use).
+##  (3) After reset, login with old password fails; login with new password succeeds.
+##  (4) GET /api/track/{orderId} is PUBLIC (no auth needed) and returns 200 with sensible order fields. Unknown id returns 404.
+##  (5) PUT /api/admin/orders/{id} with {status:'shipped'} then {status:'delivered'} sets shippedAt & deliveredAt timestamps; both timestamps appear via GET /api/track/{id}.
+##  (6) Setting status to 'delivered' again does not re-credit loyalty points.
+##  (7) Existing auth, cart, coupon, products flows must still work (regression check).
+##  (8) Node syntax check of /app/app/api/[[...path]]/route.js."
+##       - working: true
+
+
+## Backend Test Results - Testing Agent (sequence 9)
+- working: true
+- agent: "testing"
+- comment: "Executed comprehensive backend test suite via /app/backend_test.py against https://not-found-style.preview.emergentagent.com/api. All 17 tests PASSED including 4 new tests for sequence 9:
+  
+  NEW FEATURES (Tests 14-16):
+  (14) Password Reset Flow: POST /api/auth/forgot with existing email returns {ok:true, code:'188347', email} where code is 6-digit numeric string; unknown email returns 404 with error. POST /api/auth/reset with valid {email, code, password} returns {ok:true, token, user}; invalid code returns 400; missing fields returns 400; code reuse correctly returns 400 with 'Invalid reset request.' error. After reset, login with old password fails (401), login with new password succeeds (200).
+  
+  (15) Public Order Tracking: GET /api/track/{orderId} is PUBLIC (no Authorization header required) and returns 200 with {order: {id, status, createdAt, shippedAt, deliveredAt, items, total, customerName, pointsEarned}}. All required fields present and correct. Unknown order id returns 404 with error message.
+  
+  (16) Order Status Timestamps: PUT /api/admin/orders/{id} with status:'shipped' sets shippedAt (ISO string: 2026-09-26T20:52:49.907Z); status:'delivered' sets deliveredAt (ISO string: 2026-09-26T20:52:50.109Z). Both timestamps are valid ISO format and visible via GET /api/track/{id}. Setting status to 'delivered' a second time does NOT re-credit loyalty points (idempotent: customer points remained 200 after second delivery call).
+  
+  REGRESSION (Test 17):
+  All existing features verified working: GET /api/products (15 products), GET /api/products/not-found-style (404), POST /api/auth/signup (201), POST /api/auth/login (200), GET /api/coupons/validate (400 for invalid), POST /api/orders (201), admin CRUD endpoints (200).
+  
+  NODE SYNTAX (Test 12):
+  All 5 files passed syntax check: route.js, auth.js, session.js, seed.js, mongo.js.
+  
+  PREVIOUS FEATURES (Tests 1-13):
+  Auth (signup, login, admin, /me), admin endpoints authorization, coupon CRUD and validation math, order creation with coupon and loyalty redemption, idempotent delivery loyalty credit, admin product CRUD, wishlist lookup all continue to work correctly.
+  
+  No application code modified. All critical backend functionality verified and working correctly."
+
+## Testing Agent Communication (sequence 9)
+- agent: "testing"
+- message: "Backend test suite complete for sequence 9. All 17 comprehensive tests passed covering new password reset flow (forgot/reset/login), public order tracking endpoint, order status timestamps (shippedAt/deliveredAt), idempotent loyalty credit, and full regression of existing features. No critical issues found. Backend task marked working:true and needs_retesting:false."
+
+## metadata:
+##   test_sequence: 9
+
+##         agent: "testing"
+##         comment: "All 17 comprehensive backend tests PASSED against https://not-found-style.preview.emergentagent.com/api. New features verified: (1) POST /api/auth/forgot returns {ok:true, code:'6-digit', email} for existing user; unknown email returns 404. Code is numeric 6-digit string. (2) POST /api/auth/reset with valid {email, code, password} returns {ok:true, token, user}; invalid code returns 400; missing fields returns 400; code reuse correctly returns 400 with 'Invalid reset request.' error. (3) After reset, login with old password fails (401), login with new password succeeds (200). (4) GET /api/track/{orderId} is PUBLIC (no Authorization header required) and returns 200 with {order: {id, status, createdAt, shippedAt, deliveredAt, items, total, customerName, pointsEarned}}; unknown id returns 404. (5) PUT /api/admin/orders/{id} with status:'shipped' sets shippedAt (ISO string: 2026-09-26T20:52:49.907Z), status:'delivered' sets deliveredAt (ISO string: 2026-09-26T20:52:50.109Z); both timestamps visible via GET /api/track/{id}. (6) Setting status to 'delivered' a second time does NOT re-credit loyalty points (idempotent: points remained 200 after second delivery call). (7) Regression tests PASSED: GET /api/products (15 products), GET /api/products/not-found-style (404), POST /api/auth/signup (201), POST /api/auth/login (200), GET /api/coupons/validate (400 for invalid), POST /api/orders (201), admin CRUD endpoints (200). (8) Node syntax check PASSED for route.js, auth.js, session.js, seed.js, mongo.js. No application code modified."

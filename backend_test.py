@@ -477,10 +477,295 @@ def test_coupon_delete():
     assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}"
     log(f"✅ Deleted flat coupon: {coupon_id_flat}")
 
+def test_password_forgot_reset_flow():
+    """Test 14: Password reset flow - forgot, reset, login with new password"""
+    log("TEST 14: Password reset flow")
+    
+    # Create a new user for this test
+    reset_email = f"resettest{int(time.time())}@404test.com"
+    old_password = "oldpass123"
+    new_password = "newpass456"
+    
+    # Signup
+    signup_payload = {
+        "name": "Reset Test User",
+        "email": reset_email,
+        "password": old_password
+    }
+    resp1 = requests.post(f"{BASE_URL}/auth/signup", json=signup_payload)
+    assert resp1.status_code == 201, f"Expected 201, got {resp1.status_code}: {resp1.text}"
+    log(f"✅ Created test user: {reset_email}")
+    
+    # Test forgot with existing email
+    forgot_payload = {"email": reset_email}
+    resp2 = requests.post(f"{BASE_URL}/auth/forgot", json=forgot_payload)
+    assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}: {resp2.text}"
+    data2 = resp2.json()
+    assert data2.get("ok") == True, "Expected ok:true"
+    assert "code" in data2, "Expected code in response"
+    assert "email" in data2, "Expected email in response"
+    assert data2["email"] == reset_email.lower(), "Email should match"
+    reset_code = data2["code"]
+    assert len(reset_code) == 6, f"Code should be 6 digits, got {len(reset_code)}"
+    assert reset_code.isdigit(), f"Code should be numeric, got {reset_code}"
+    log(f"✅ Forgot password returned 6-digit code: {reset_code}")
+    
+    # Test forgot with unknown email
+    resp3 = requests.post(f"{BASE_URL}/auth/forgot", json={"email": "unknown@404test.com"})
+    assert resp3.status_code == 404, f"Unknown email should return 404, got {resp3.status_code}"
+    data3 = resp3.json()
+    assert "error" in data3, "Expected error message"
+    log(f"✅ Forgot with unknown email correctly returns 404")
+    
+    # Test reset with invalid code
+    invalid_reset = {
+        "email": reset_email,
+        "code": "999999",
+        "password": new_password
+    }
+    resp4 = requests.post(f"{BASE_URL}/auth/reset", json=invalid_reset)
+    assert resp4.status_code == 400, f"Invalid code should return 400, got {resp4.status_code}"
+    log(f"✅ Reset with invalid code correctly returns 400")
+    
+    # Test reset with missing fields
+    resp5 = requests.post(f"{BASE_URL}/auth/reset", json={"email": reset_email})
+    assert resp5.status_code == 400, f"Missing fields should return 400, got {resp5.status_code}"
+    log(f"✅ Reset with missing fields correctly returns 400")
+    
+    # Test reset with valid code
+    valid_reset = {
+        "email": reset_email,
+        "code": reset_code,
+        "password": new_password
+    }
+    resp6 = requests.post(f"{BASE_URL}/auth/reset", json=valid_reset)
+    assert resp6.status_code == 200, f"Expected 200, got {resp6.status_code}: {resp6.text}"
+    data6 = resp6.json()
+    assert data6.get("ok") == True, "Expected ok:true"
+    assert "token" in data6, "Expected token in response"
+    assert "user" in data6, "Expected user in response"
+    new_token = data6["token"]
+    log(f"✅ Reset password successful, received new token")
+    
+    # Test code reuse (should fail)
+    resp7 = requests.post(f"{BASE_URL}/auth/reset", json=valid_reset)
+    assert resp7.status_code == 400, f"Code reuse should return 400, got {resp7.status_code}"
+    data7 = resp7.json()
+    assert "error" in data7, "Expected error message"
+    assert "Invalid reset" in data7["error"] or "Invalid reset code" in data7["error"], f"Expected 'Invalid reset request' or 'Invalid reset code', got {data7['error']}"
+    log(f"✅ Code reuse correctly returns 400 with error: {data7['error']}")
+    
+    # Test login with old password (should fail)
+    old_login = {
+        "email": reset_email,
+        "password": old_password
+    }
+    resp8 = requests.post(f"{BASE_URL}/auth/login", json=old_login)
+    assert resp8.status_code == 401, f"Login with old password should return 401, got {resp8.status_code}"
+    log(f"✅ Login with old password correctly fails (401)")
+    
+    # Test login with new password (should succeed)
+    new_login = {
+        "email": reset_email,
+        "password": new_password
+    }
+    resp9 = requests.post(f"{BASE_URL}/auth/login", json=new_login)
+    assert resp9.status_code == 200, f"Expected 200, got {resp9.status_code}: {resp9.text}"
+    data9 = resp9.json()
+    assert data9.get("ok") == True, "Expected ok:true"
+    assert "token" in data9, "Expected token"
+    log(f"✅ Login with new password successful")
+
+def test_public_order_tracking():
+    """Test 15: GET /api/track/{orderId} - public endpoint"""
+    log("TEST 15: Public order tracking")
+    
+    # Create an order first
+    headers = {"Authorization": f"Bearer {customer_token}"}
+    order_payload = {
+        "items": [
+            {"name": "Tracking Test Product", "price": 1500, "quantity": 1, "size": "M", "slug": "test-track"}
+        ]
+    }
+    resp1 = requests.post(f"{BASE_URL}/orders", json=order_payload, headers=headers)
+    assert resp1.status_code == 201, f"Expected 201, got {resp1.status_code}: {resp1.text}"
+    data1 = resp1.json()
+    track_order_id = data1["order"]["id"]
+    log(f"✅ Created order for tracking: {track_order_id}")
+    
+    # Test public tracking WITHOUT auth (should work)
+    resp2 = requests.get(f"{BASE_URL}/track/{track_order_id}")
+    assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}: {resp2.text}"
+    data2 = resp2.json()
+    assert "order" in data2, "Expected order in response"
+    order = data2["order"]
+    
+    # Verify required fields
+    assert order["id"] == track_order_id, "Order ID should match"
+    assert "status" in order, "Expected status field"
+    assert "createdAt" in order, "Expected createdAt field"
+    assert "items" in order, "Expected items array"
+    assert "total" in order, "Expected total field"
+    assert "customerName" in order, "Expected customerName field"
+    assert "pointsEarned" in order, "Expected pointsEarned field"
+    assert order["total"] == 1500, f"Expected total 1500, got {order['total']}"
+    assert order["pointsEarned"] == 100, f"Expected pointsEarned 100, got {order['pointsEarned']}"
+    assert len(order["items"]) == 1, f"Expected 1 item, got {len(order['items'])}"
+    log(f"✅ Public tracking returned order with all required fields")
+    
+    # Test tracking with unknown order ID
+    resp3 = requests.get(f"{BASE_URL}/track/unknown-order-id-12345")
+    assert resp3.status_code == 404, f"Unknown order should return 404, got {resp3.status_code}"
+    data3 = resp3.json()
+    assert "error" in data3, "Expected error message"
+    log(f"✅ Tracking unknown order correctly returns 404")
+
+def test_order_status_timestamps():
+    """Test 16: Order status updates with shippedAt and deliveredAt timestamps"""
+    log("TEST 16: Order status timestamps")
+    
+    # Create an order
+    headers = {"Authorization": f"Bearer {customer_token}"}
+    order_payload = {
+        "items": [
+            {"name": "Timestamp Test Product", "price": 2000, "quantity": 1, "size": "L", "slug": "test-timestamp"}
+        ]
+    }
+    resp1 = requests.post(f"{BASE_URL}/orders", json=order_payload, headers=headers)
+    assert resp1.status_code == 201, f"Expected 201, got {resp1.status_code}: {resp1.text}"
+    data1 = resp1.json()
+    timestamp_order_id = data1["order"]["id"]
+    log(f"✅ Created order for timestamp test: {timestamp_order_id}")
+    
+    # Update status to 'shipped'
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    resp2 = requests.put(f"{BASE_URL}/admin/orders/{timestamp_order_id}", json={"status": "shipped"}, headers=admin_headers)
+    assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}: {resp2.text}"
+    data2 = resp2.json()
+    assert data2["order"]["status"] == "shipped", "Status should be shipped"
+    assert "shippedAt" in data2["order"], "Expected shippedAt field"
+    assert data2["order"]["shippedAt"] is not None, "shippedAt should not be null"
+    shipped_at = data2["order"]["shippedAt"]
+    log(f"✅ Order status updated to 'shipped', shippedAt: {shipped_at}")
+    
+    # Verify shippedAt is an ISO string
+    try:
+        from dateutil import parser
+        parsed_shipped = parser.isoparse(shipped_at)
+        log(f"✅ shippedAt is valid ISO string: {shipped_at}")
+    except:
+        # Fallback if dateutil not available
+        assert "T" in shipped_at or "-" in shipped_at, f"shippedAt should be ISO format, got {shipped_at}"
+        log(f"✅ shippedAt appears to be ISO format: {shipped_at}")
+    
+    # Update status to 'delivered'
+    resp3 = requests.put(f"{BASE_URL}/admin/orders/{timestamp_order_id}", json={"status": "delivered"}, headers=admin_headers)
+    assert resp3.status_code == 200, f"Expected 200, got {resp3.status_code}: {resp3.text}"
+    data3 = resp3.json()
+    assert data3["order"]["status"] == "delivered", "Status should be delivered"
+    assert "deliveredAt" in data3["order"], "Expected deliveredAt field"
+    assert data3["order"]["deliveredAt"] is not None, "deliveredAt should not be null"
+    delivered_at = data3["order"]["deliveredAt"]
+    log(f"✅ Order status updated to 'delivered', deliveredAt: {delivered_at}")
+    
+    # Verify deliveredAt is an ISO string
+    try:
+        from dateutil import parser
+        parsed_delivered = parser.isoparse(delivered_at)
+        log(f"✅ deliveredAt is valid ISO string: {delivered_at}")
+    except:
+        assert "T" in delivered_at or "-" in delivered_at, f"deliveredAt should be ISO format, got {delivered_at}"
+        log(f"✅ deliveredAt appears to be ISO format: {delivered_at}")
+    
+    # Verify both timestamps appear via public tracking
+    resp4 = requests.get(f"{BASE_URL}/track/{timestamp_order_id}")
+    assert resp4.status_code == 200, f"Expected 200, got {resp4.status_code}"
+    data4 = resp4.json()
+    track_order = data4["order"]
+    assert track_order["shippedAt"] == shipped_at, f"shippedAt should match: expected {shipped_at}, got {track_order['shippedAt']}"
+    assert track_order["deliveredAt"] == delivered_at, f"deliveredAt should match: expected {delivered_at}, got {track_order['deliveredAt']}"
+    log(f"✅ Both timestamps visible via GET /api/track/{timestamp_order_id}")
+    
+    # Test idempotent loyalty credit (set delivered again)
+    # Get customer points before
+    resp5 = requests.get(f"{BASE_URL}/auth/me", headers=headers)
+    data5 = resp5.json()
+    points_before = data5["user"]["loyaltyPoints"]
+    log(f"✅ Customer points before second delivery: {points_before}")
+    
+    # Set delivered again
+    resp6 = requests.put(f"{BASE_URL}/admin/orders/{timestamp_order_id}", json={"status": "delivered"}, headers=admin_headers)
+    assert resp6.status_code == 200, f"Expected 200, got {resp6.status_code}"
+    log(f"✅ Set order to delivered again (idempotent test)")
+    
+    # Get customer points after
+    resp7 = requests.get(f"{BASE_URL}/auth/me", headers=headers)
+    data7 = resp7.json()
+    points_after = data7["user"]["loyaltyPoints"]
+    assert points_after == points_before, f"Points should not change on second delivery: before={points_before}, after={points_after}"
+    log(f"✅ Customer points unchanged after second delivery: {points_after} (no double credit)")
+
+def test_regression_existing_features():
+    """Test 17: Regression check for existing features"""
+    log("TEST 17: Regression check")
+    
+    # Test GET /api/products
+    resp1 = requests.get(f"{BASE_URL}/products")
+    assert resp1.status_code == 200, f"GET /api/products failed: {resp1.status_code}"
+    data1 = resp1.json()
+    assert "products" in data1, "Expected products array"
+    assert len(data1["products"]) > 0, "Should have products"
+    log(f"✅ GET /api/products works ({len(data1['products'])} products)")
+    
+    # Test GET /api/products/{slug} with non-existent slug
+    resp2 = requests.get(f"{BASE_URL}/products/not-found-style-xyz")
+    assert resp2.status_code == 404, f"Non-existent product should return 404, got {resp2.status_code}"
+    log(f"✅ GET /api/products/not-found-style returns 404")
+    
+    # Test auth signup (create new user)
+    signup_email = f"regression{int(time.time())}@404test.com"
+    resp3 = requests.post(f"{BASE_URL}/auth/signup", json={
+        "name": "Regression Test",
+        "email": signup_email,
+        "password": "test1234"
+    })
+    assert resp3.status_code == 201, f"Signup failed: {resp3.status_code}"
+    regression_token = resp3.json()["token"]
+    log(f"✅ POST /api/auth/signup works")
+    
+    # Test auth login
+    resp4 = requests.post(f"{BASE_URL}/auth/login", json={
+        "email": signup_email,
+        "password": "test1234"
+    })
+    assert resp4.status_code == 200, f"Login failed: {resp4.status_code}"
+    log(f"✅ POST /api/auth/login works")
+    
+    # Test coupon validation
+    resp5 = requests.get(f"{BASE_URL}/coupons/validate?code=INVALID&subtotal=1000")
+    assert resp5.status_code == 400, f"Invalid coupon should return 400, got {resp5.status_code}"
+    log(f"✅ GET /api/coupons/validate works")
+    
+    # Test order creation
+    headers = {"Authorization": f"Bearer {regression_token}"}
+    resp6 = requests.post(f"{BASE_URL}/orders", json={
+        "items": [{"name": "Regression Product", "price": 1000, "quantity": 1, "size": "M"}]
+    }, headers=headers)
+    assert resp6.status_code == 201, f"Order creation failed: {resp6.status_code}"
+    log(f"✅ POST /api/orders works")
+    
+    # Test admin endpoints (already tested in detail, just verify they still work)
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    resp7 = requests.get(f"{BASE_URL}/admin/products", headers=admin_headers)
+    assert resp7.status_code == 200, f"Admin products failed: {resp7.status_code}"
+    log(f"✅ Admin CRUD endpoints work")
+    
+    log(f"✅ All regression checks passed")
+
 def run_all_tests():
     """Run all backend tests in sequence"""
     print("\n" + "="*80)
-    print("THE 404 STORE - Comprehensive Backend API Test Suite")
+    print("THE 404 STORE - Comprehensive Backend API Test Suite (Sequence 9)")
     print("="*80 + "\n")
     
     tests = [
@@ -497,6 +782,10 @@ def run_all_tests():
         ("Wishlist Lookup", test_wishlist_lookup),
         ("Node Syntax Check", test_node_syntax),
         ("Coupon Deletion", test_coupon_delete),
+        ("Password Reset Flow", test_password_forgot_reset_flow),
+        ("Public Order Tracking", test_public_order_tracking),
+        ("Order Status Timestamps", test_order_status_timestamps),
+        ("Regression Check", test_regression_existing_features),
     ]
     
     passed = 0
