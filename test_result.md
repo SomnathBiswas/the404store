@@ -214,3 +214,39 @@
 ## Testing Agent Communication
 - agent: "testing"
   message: "Remaining shopping interaction action items pass. The prior block was test sequencing only; after clearing search state, product/cart/wishlist/newsletter/mobile overflow coverage completed successfully."
+
+## Backend Full-Stack Upgrade (sequence 5)
+- Migrated backend to MongoDB with real CRUD via /api/products, /api/products/[slug], /api/newsletter, /api/orders, /api/seed
+- Categories updated to: Shirt, Tshirt, Jeans, Newdrop, Sale (15 seeded products, 3 per category)
+- Seeded via GET /api/seed (idempotent via ensureSeeded)
+- Frontend now fetches from API on entry + on filter/query changes
+- Added dedicated product page at /app/product/[slug]/page.js with server-side fetch + client interactions
+- Enlarged sticky navbar with scroll-shrink behavior, active-category indicator, red (#ff2d2d) accent replacing acid green
+- User-provided images now used for hero, category, editorial, product cards and social grid
+
+## Backend Retest Request
+## - task: "Full-stack MongoDB products & product detail API"
+##   implemented: true
+##   working: true
+##   file: "/app/app/api/[[...path]]/route.js"
+##   stuck_count: 0
+##   priority: "high"
+##   needs_retesting: false
+##   status_history:
+##       - working: "NA"
+##         agent: "main"
+##         comment: "New MongoDB-backed endpoints. Please verify: (1) GET /api/products returns 15 seeded products with real UUID ids, categories in [Shirt,Tshirt,Jeans,Newdrop,Sale]. (2) GET /api/products?category=<X> for each of 5 categories returns 3 products each. (3) GET /api/products?q=hoodie returns Error Hoodie. (4) GET /api/products?sort=price-asc / price-desc / newest sorts correctly. (5) GET /api/products/error-hoodie returns product + related array. (6) GET /api/products/does-not-exist returns 404. (7) POST /api/newsletter with valid email returns 201 and persists to DB; invalid email returns 400. (8) POST /api/orders with items+total returns 201 with order.id (UUID). (9) GET /api/seed returns ok:true. Node syntax of route.js should pass."
+##       - working: true
+##         agent: "testing"
+##         comment: "All 10 backend tests passed against https://not-found-style.preview.emergentagent.com/api. (1) GET /api/products returns 15 products with UUID ids and correct structure. (2) All 5 category filters (Shirt, Tshirt, Jeans, Newdrop, Sale) return exactly 3 products each with matching categories. (3) Search q=hoodie returns Error Hoodie. (4) Sorting price-asc/price-desc/newest all work correctly. (5) GET /api/products/error-hoodie returns product + 2 related products from same Newdrop category. (6) GET /api/products/does-not-exist returns 404 with error message. (7) POST /api/newsletter: valid email returns 201, missing/invalid email returns 400. (8) POST /api/orders returns 201 with UUID order.id. (9) GET /api/seed returns ok:true with count 15. (10) Node syntax check passed for route.js, seed.js, and mongo.js. No critical issues found."
+
+
+
+## Backend Test Results - Testing Agent (sequence 6)
+- working: true
+- agent: "testing"
+- comment: "Executed comprehensive backend test suite via /app/backend_test.py against https://not-found-style.preview.emergentagent.com/api. All 10 tests passed: (1) GET /api/products returns 15 products with UUID ids, correct structure, and categories array. (2) Category filters for Shirt, Tshirt, Jeans, Newdrop, Sale each return exactly 3 products with matching categories. (3) Search q=hoodie returns Error Hoodie. (4) Sorting by price-asc (6.99-39.99), price-desc (39.99-6.99), and newest all work correctly. (5) GET /api/products/error-hoodie returns product object + 2 related products from Newdrop category. (6) GET /api/products/does-not-exist returns 404 with error message. (7) POST /api/newsletter with valid email returns 201, missing/invalid email returns 400. (8) POST /api/orders returns 201 with UUID order.id. (9) GET /api/seed returns ok:true, seeded:true, count:15. (10) Node syntax check passed for route.js, seed.js, mongo.js. No application code modified."
+
+## Testing Agent Communication
+- agent: "testing"
+- message: "Backend MongoDB API fully functional. All requested endpoints verified and working correctly. Backend task marked working:true and needs_retesting:false. No critical issues found."
