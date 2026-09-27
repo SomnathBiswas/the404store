@@ -28,10 +28,27 @@ export default function AdminLogin() {
 
   const submit = async (e) => {
     e.preventDefault(); setError('')
-    const res = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
-    const data = await res.json()
-    if (!res.ok || data.user?.role !== 'admin') { setError(data.error || 'Not an admin account.'); return }
-    setToken(data.token); setStoredUser(data.user); router.push('/admin/dashboard')
+    try {
+      const res = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
+      const data = await res.json()
+      
+      if (!res.ok) {
+        setError(data.error || 'Login failed. Please check your credentials.')
+        return
+      }
+      
+      if (data.user?.role !== 'admin') {
+        setError('Not an admin account.')
+        return
+      }
+      
+      setToken(data.token)
+      setStoredUser(data.user)
+      router.push('/admin/dashboard')
+    } catch (error) {
+      setError('Login failed. Please try again.')
+      console.error('Admin login error:', error)
+    }
   }
 
   return (

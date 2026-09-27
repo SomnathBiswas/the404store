@@ -66,11 +66,46 @@ export default function AdminDashboard() {
   const refresh = async () => {
     try {
       const [s, p, c, o, u] = await Promise.all([
-        authFetch('/api/admin/stats').then((r) => r.ok ? r.json() : { stats: {} }),
-        authFetch('/api/admin/products').then((r) => r.ok ? r.json() : { products: [] }),
-        authFetch('/api/admin/coupons').then((r) => r.ok ? r.json() : { coupons: [] }),
-        authFetch('/api/admin/orders').then((r) => r.ok ? r.json() : { orders: [] }),
-        authFetch('/api/admin/users').then((r) => r.ok ? r.json() : { users: [] }),
+        authFetch('/api/admin/stats').then(async (r) => {
+          if (!r.ok) {
+            const error = await r.json().catch(() => ({ error: 'Unknown error' }))
+            console.error('Stats fetch error:', error)
+            return { stats: {} }
+          }
+          return r.json()
+        }),
+        authFetch('/api/admin/products').then(async (r) => {
+          if (!r.ok) {
+            const error = await r.json().catch(() => ({ error: 'Unknown error' }))
+            console.error('Products fetch error:', error)
+            return { products: [] }
+          }
+          return r.json()
+        }),
+        authFetch('/api/admin/coupons').then(async (r) => {
+          if (!r.ok) {
+            const error = await r.json().catch(() => ({ error: 'Unknown error' }))
+            console.error('Coupons fetch error:', error)
+            return { coupons: [] }
+          }
+          return r.json()
+        }),
+        authFetch('/api/admin/orders').then(async (r) => {
+          if (!r.ok) {
+            const error = await r.json().catch(() => ({ error: 'Unknown error' }))
+            console.error('Orders fetch error:', error)
+            return { orders: [] }
+          }
+          return r.json()
+        }),
+        authFetch('/api/admin/users').then(async (r) => {
+          if (!r.ok) {
+            const error = await r.json().catch(() => ({ error: 'Unknown error' }))
+            console.error('Users fetch error:', error)
+            return { users: [] }
+          }
+          return r.json()
+        }),
       ])
       setStats(s.stats); setProducts(p.products || []); setCoupons(c.coupons || []); setOrders(o.orders || []); setUsers(u.users || [])
     } catch (error) {
