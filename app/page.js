@@ -10,9 +10,9 @@ import { authFetch, getStoredUser, getToken, money } from '@/lib/session'
 const HERO_IMG = 'https://customer-assets-lqy194kg.emergentagent.net/job_not-found-style/artifacts/z86lx0kg_file_0000000091908211b979c011be24a43a.png'
 const LANDING_IMG = 'https://customer-assets-lqy194kg.emergentagent.net/job_not-found-style/artifacts/u3ixlku2_file_00000000ac908211af2cb10fe70a1e09.png'
 const EDITORIAL_IMG = 'https://customer-assets-lqy194kg.emergentagent.net/job_not-found-style/artifacts/deavzcwm_file_00000000a4c48211a4f3e355ddb9da99.png'
-const CAT_A = 'https://customer-assets-lqy194kg.emergentagent.net/job_not-found-style/artifacts/7t5y1xpl_file_000000003f508211bff835467c511012.png'
+const CAT_A = 'https://customer-assets-lqy194kg.emergentagent.net/job_not-found-style/artifacts/deavzcwm_file_00000000a4c48211a4f3e355ddb9da99.png' // Shirt image (swapped)
 const CAT_B = 'https://customer-assets-lqy194kg.emergentagent.net/job_not-found-style/artifacts/uui4654j_file_00000000c1b88211bd75e52d376dca02.png'
-const SOCIALS = [CAT_A, CAT_B, EDITORIAL_IMG, LANDING_IMG]
+const SOCIALS = ['https://customer-assets-lqy194kg.emergentagent.net/job_not-found-style/artifacts/7t5y1xpl_file_000000003f508211bff835467c511012.png', CAT_B, EDITORIAL_IMG, LANDING_IMG] // First one is now jeans image
 
 const CATEGORIES = ['All', 'Shirt', 'Tshirt', 'Jeans', 'Newdrop', 'Sale']
 
@@ -228,7 +228,7 @@ const App = () => {
           <button type="button" onClick={() => { setActiveCategory('Shirt'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative h-[280px] overflow-hidden text-left md:col-span-5 md:h-[620px]"><img src={CAT_A} alt="Shirts" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /><div className="absolute inset-0 bg-black/15 transition group-hover:bg-black/0" /><span className="absolute bottom-3 left-3 text-3xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-2 md:bottom-5 md:left-5 md:text-7xl">Shirt <ArrowRight className="inline" size={24} /></span></button>
           <div className="grid gap-3 md:col-span-7 md:grid-cols-2">
             <button type="button" onClick={() => { setActiveCategory('Tshirt'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative h-[240px] overflow-hidden text-left md:h-[420px]"><img src={CAT_B} alt="Tshirts" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /><span className="absolute bottom-3 left-3 text-3xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-2 md:bottom-5 md:left-5 md:text-5xl">Tshirt <ArrowRight className="inline" size={20} /></span></button>
-            <button type="button" onClick={() => { setActiveCategory('Jeans'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative mt-0 h-[240px] overflow-hidden bg-[#ff2d2d] text-left md:mt-20 md:h-[420px]"><img src={SOCIALS[2]} alt="Jeans" loading="lazy" className="h-full w-full object-cover mix-blend-multiply transition duration-700 group-hover:scale-105" /><span className="absolute bottom-3 left-3 text-3xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-2 md:bottom-5 md:left-5 md:text-5xl">Jeans <ArrowRight className="inline" size={20} /></span></button>
+            <button type="button" onClick={() => { setActiveCategory('Jeans'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative mt-0 h-[240px] overflow-hidden bg-[#ff2d2d] text-left md:mt-20 md:h-[420px]"><img src={SOCIALS[0]} alt="Jeans" loading="lazy" className="h-full w-full object-cover mix-blend-multiply transition duration-700 group-hover:scale-105" /><span className="absolute bottom-3 left-3 text-3xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-2 md:bottom-5 md:left-5 md:text-5xl">Jeans <ArrowRight className="inline" size={20} /></span></button>
           </div>
         </div>
       </section>
