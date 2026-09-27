@@ -33,6 +33,7 @@ dist
 # Environment files (comprehensive coverage)
 *token.json*
 *credentials.json*
+.env
 
 # Logs and debug files
 npm-debug.log*
@@ -81,3 +82,4 @@ memory/test_credentials.md
 android-sdk/node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
 node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
 node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
+node_modules/@next/swc-win32-x64-msvc/next-swc.win32-x64-msvc.node

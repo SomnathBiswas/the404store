@@ -174,11 +174,6 @@ export async function POST(request, { params }) {
 
     if (root === 'auth' && second === 'login') {
       const { email, password } = body
-      // admin?
-      if (email && email.toLowerCase() === (process.env.ADMIN_EMAIL || '').toLowerCase() && password === process.env.ADMIN_PASSWORD) {
-        const token = signToken({ userId: 'admin', role: 'admin', email: email.toLowerCase() })
-        return json({ ok: true, token, user: { id: 'admin', name: 'Admin', email: email.toLowerCase(), role: 'admin' } })
-      }
       const user = await db.collection('users').findOne({ email: (email || '').toLowerCase() })
       if (!user) return json({ error: 'Invalid credentials.' }, 401)
       const ok = await comparePassword(password || '', user.password)
@@ -222,6 +217,19 @@ export async function POST(request, { params }) {
       if (!body.email || !String(body.email).includes('@')) return json({ error: 'Valid email required.' }, 400)
       await db.collection('newsletter').insertOne({ id: uuid(), email: body.email, createdAt: new Date() })
       return json({ ok: true, message: 'You are on the list.' }, 201)
+    }
+
+    // Admin login (separate from user auth)
+    if (root === 'admin' && second === 'login') {
+      const { email, password } = body
+      const adminEmail = process.env.ADMIN_EMAIL
+      const adminPassword = process.env.ADMIN_PASSWORD
+      if (!adminEmail || !adminPassword) return json({ error: 'Admin credentials not configured.' }, 500)
+      if (email && email.toLowerCase() === adminEmail.toLowerCase() && password === adminPassword) {
+        const token = signToken({ userId: 'admin', role: 'admin', email: email.toLowerCase() })
+        return json({ ok: true, token, user: { id: 'admin', name: 'Admin', email: email.toLowerCase(), role: 'admin' } })
+      }
+      return json({ error: 'Invalid admin credentials.' }, 401)
     }
 
     // Place order

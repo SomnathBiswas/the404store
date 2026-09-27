@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Heart, Menu, Search, ShoppingBag, User, X, LogOut, Sparkles } from 'lucide-react'
 import { getStoredUser, clearToken, clearStoredUser, authFetch } from '@/lib/session'
 
-const NAV = ['Shirt', 'Tshirt', 'Jeans', 'Newdrop', 'Sale']
+const NAV = ['Shirt', 'Tshirt', 'Jeans', 'Newdrop', 'Sale', 'About']
 
 export default function StoreNav({ activeCategory, onCategory, onSearch, onCart, cartCount = 0, wishlistCount = 0 }) {
   const [scrolled, setScrolled] = useState(false)
@@ -13,17 +13,31 @@ export default function StoreNav({ activeCategory, onCategory, onSearch, onCart,
   const [showProfile, setShowProfile] = useState(false)
 
   useEffect(() => {
-    setUser(getStoredUser())
+    const storedUser = getStoredUser()
+    // Don't show admin users in regular navigation
+    if (storedUser?.role !== 'admin') {
+      setUser(storedUser)
+    } else {
+      // Clear admin credentials from regular nav
+      clearToken()
+      clearStoredUser()
+    }
     const onScroll = () => setScrolled(window.scrollY > 40)
     window.addEventListener('scroll', onScroll, { passive: true })
-    // refresh loyalty points on nav mount
-    authFetch('/api/auth/me').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.user) { setUser(d.user); window.localStorage.setItem('404-user', JSON.stringify(d.user)) } }).catch(() => {})
+    // refresh loyalty points on nav mount (only for regular users)
+    if (storedUser?.role !== 'admin') {
+      authFetch('/api/auth/me').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.user) { setUser(d.user); window.localStorage.setItem('404-user', JSON.stringify(d.user)) } }).catch(() => {})
+    }
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   const doLogout = () => { clearToken(); clearStoredUser(); setUser(null); setShowProfile(false); if (window.location.pathname !== '/') window.location.href = '/' }
 
   const handleCat = (item) => {
+    if (item === 'About') {
+      window.location.href = '/about'
+      return
+    }
     if (onCategory) onCategory(item)
     else window.location.href = `/#drop`
   }

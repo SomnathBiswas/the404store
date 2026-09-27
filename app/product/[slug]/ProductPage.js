@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Check, Heart, Minus, Plus, ShoppingBag, Sparkles, X } from 'lucide-react'
 import StoreNav from '@/components/StoreNav'
-import { money } from '@/lib/session'
+import { money, getStoredUser } from '@/lib/session'
 
 export default function ProductPage({ initialData, slug }) {
   const router = useRouter()
@@ -76,6 +76,15 @@ export default function ProductPage({ initialData, slug }) {
     const next = cart.map((e) => e === item ? { ...e, quantity: Math.max(0, e.quantity + delta) } : e).filter((e) => e.quantity > 0)
     window.localStorage.setItem('404-cart', JSON.stringify(next))
     refreshCart()
+  }
+
+  const handleCheckout = () => {
+    const user = getStoredUser()
+    if (!user) {
+      router.push('/auth?redirect=/checkout')
+    } else {
+      router.push('/checkout')
+    }
   }
 
   return (
@@ -164,7 +173,7 @@ export default function ProductPage({ initialData, slug }) {
                 </div>
                 <div className="border-t border-black pt-5">
                   <div className="flex justify-between text-lg font-bold"><span>Subtotal</span><span>{money(cart.reduce((t, i) => t + i.price * i.quantity, 0))}</span></div>
-                  <Link href="/" className="mt-5 flex w-full items-center justify-center gap-3 bg-black px-4 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-white transition hover:bg-[#ff2d2d]">Checkout <ArrowRight size={15} /></Link>
+                  <button onClick={handleCheckout} className="mt-5 flex w-full items-center justify-center gap-3 bg-black px-4 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-white transition hover:bg-[#ff2d2d]">Checkout <ArrowRight size={15} /></button>
                   <p className="mt-4 text-center text-[9px] uppercase tracking-[0.14em] text-black/45">Apply coupons and points in the main bag</p>
                 </div>
               </>

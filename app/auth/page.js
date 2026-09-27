@@ -3,12 +3,13 @@ import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { ArrowRight, ArrowLeft } from 'lucide-react'
-import { setToken, setStoredUser } from '@/lib/session'
+import { setToken, setStoredUser, getStoredUser, clearToken, clearStoredUser } from '@/lib/session'
 
 function AuthInner() {
   const params = useSearchParams()
   const router = useRouter()
   const initialMode = params.get('mode') === 'signup' ? 'signup' : 'login'
+  const redirectPath = params.get('redirect') || '/'
   const [mode, setMode] = useState(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -16,7 +17,15 @@ function AuthInner() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => { setMode(initialMode) }, [initialMode])
+  useEffect(() => { 
+    setMode(initialMode)
+    // Clear any admin credentials that might be stored
+    const storedUser = getStoredUser()
+    if (storedUser?.role === 'admin') {
+      clearToken()
+      clearStoredUser()
+    }
+  }, [initialMode])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -28,8 +37,9 @@ function AuthInner() {
       if (!res.ok) { setError(data.error || 'Something went wrong.'); setBusy(false); return }
       setToken(data.token)
       setStoredUser(data.user)
-      if (data.user?.role === 'admin') router.push('/admin/dashboard')
-      else router.push('/')
+      // Only redirect to admin dashboard if user is admin AND not trying to checkout
+      if (data.user?.role === 'admin' && redirectPath !== '/checkout') router.push('/admin/dashboard')
+      else router.push(redirectPath)
     } catch (err) { setError('Network error.') }
     setBusy(false)
   }
@@ -74,6 +84,11 @@ function AuthInner() {
             <button type="submit" disabled={busy} className="group flex w-full items-center justify-center gap-3 bg-black px-4 py-5 text-[11px] font-bold uppercase tracking-[0.22em] text-white transition hover:bg-[#ff2d2d] disabled:opacity-50">{busy ? 'Please wait…' : (mode === 'login' ? 'Enter the 404' : 'Create account')} <ArrowRight size={15} className="transition group-hover:translate-x-1" /></button>
             {mode === 'login' && <Link href="/auth/forgot" className="block text-center text-[10px] font-bold uppercase tracking-[0.18em] text-black/60 hover:text-[#ff2d2d]">Forgot password?</Link>}
             <p className="pt-2 text-[10px] uppercase tracking-[0.15em] text-black/50">By continuing, you agree to be a little different.</p>
+            {redirectPath !== '/' && (
+              <p className="pt-2 text-[10px] uppercase tracking-[0.15em] text-[#ff2d2d]">
+                Sign in to continue to checkout
+              </p>
+            )}
           </form>
         </div>
       </div>

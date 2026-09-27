@@ -154,18 +154,15 @@ const App = () => {
     setCouponMsg(`✓ Coupon ${data.coupon.code} applied`)
   }
 
-  const placeOrder = async () => {
+  const placeOrder = () => {
     if (!cart.length) return
-    if (!user) { router.push('/auth'); return }
-    const body = { items: cart, couponCode: appliedCoupon?.code || null, redeemPoints: pointsUsable }
-    const res = await authFetch('/api/orders', { method: 'POST', body: JSON.stringify(body) })
-    const data = await res.json()
-    if (!res.ok) { alert(data.error || 'Order failed'); return }
-    setPlacedOrder(data.order)
-    setCart([])
-    setAppliedCoupon(null); setCouponInput(''); setCouponMsg(''); setRedeemPts(0)
-    // refresh user to update points if any redeemed
-    authFetch('/api/auth/me').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.user) { setUser(d.user); window.localStorage.setItem('404-user', JSON.stringify(d.user)) } })
+    if (!user) { router.push('/auth?redirect=/checkout'); return }
+    // Prevent admin users from accessing checkout
+    if (user?.role === 'admin') {
+      alert('Admin users cannot place orders')
+      return
+    }
+    router.push('/checkout')
   }
 
   if (isLoading) {
@@ -304,7 +301,7 @@ const App = () => {
           <div className="grid gap-12 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
             <div><div className="text-5xl font-black leading-[.72] tracking-[-.1em]">THE<br />404<br />STORE</div><p className="mt-8 text-[11px] uppercase tracking-[0.15em] text-white/50">Style not found.</p></div>
             <div><h4 className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#ff2d2d]">Shop</h4>{['All', 'Shirt', 'Tshirt', 'Jeans', 'Newdrop', 'Sale'].map((item) => (<button key={item} onClick={() => { setActiveCategory(item); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="mb-3 block text-left text-[11px] uppercase tracking-[0.12em] text-white/65 transition hover:text-white">{item === 'Newdrop' ? 'New Drop' : item}</button>))}</div>
-            <div><h4 className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#ff2d2d]">Account</h4><Link href="/account" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">My account</Link><Link href="/wishlist" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">Wishlist</Link><Link href="/auth/forgot" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">Forgot password</Link><a href="#loyal-corner" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">Loyal 404 Corner</a><Link href="/admin" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/40 hover:text-[#ff2d2d]">Admin gate</Link></div>
+            <div><h4 className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#ff2d2d]">Account</h4><Link href="/account" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">My account</Link><Link href="/wishlist" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">Wishlist</Link><Link href="/auth/forgot" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">Forgot password</Link><a href="#loyal-corner" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">Loyal 404 Corner</a><Link href="/about" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">About</Link></div>
             <div><h4 className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#ff2d2d]">Follow</h4>{['Instagram', 'YouTube', 'Pinterest', 'TikTok'].map((item) => <a key={item} href="#social" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">{item}</a>)}</div>
           </div>
           <div className="mt-20 flex flex-col justify-between gap-4 border-t border-white/20 pt-5 text-[9px] uppercase tracking-[0.16em] text-white/40 md:flex-row"><span>© 2026 The 404 Store</span><span>Privacy · Terms · Refund policy</span><span>Made for the not found</span></div>

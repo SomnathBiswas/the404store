@@ -18,6 +18,8 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([])
 
   const [newProduct, setNewProduct] = useState({ name: '', slug: '', category: 'Shirt', price: '', color: 'Black', image: '', hoverImage: '', description: '', sizes: 'S,M,L,XL', badge: 'New' })
+  const [imagePreview, setImagePreview] = useState('')
+  const [hoverImagePreview, setHoverImagePreview] = useState('')
   const [newCoupon, setNewCoupon] = useState({ code: '', type: 'percent', value: 10, minOrder: 0, expiresAt: '' })
 
   useEffect(() => {
@@ -44,7 +46,12 @@ export default function AdminDashboard() {
     e.preventDefault()
     const body = { ...newProduct, price: Number(newProduct.price), sizes: newProduct.sizes.split(',').map((s) => s.trim()).filter(Boolean) }
     const res = await authFetch('/api/admin/products', { method: 'POST', body: JSON.stringify(body) })
-    if (res.ok) { setNewProduct({ name: '', slug: '', category: 'Shirt', price: '', color: 'Black', image: '', hoverImage: '', description: '', sizes: 'S,M,L,XL', badge: 'New' }); refresh() }
+    if (res.ok) { 
+      setNewProduct({ name: '', slug: '', category: 'Shirt', price: '', color: 'Black', image: '', hoverImage: '', description: '', sizes: 'S,M,L,XL', badge: 'New' })
+      setImagePreview('')
+      setHoverImagePreview('')
+      refresh() 
+    }
     else { const d = await res.json(); alert(d.error || 'Failed') }
   }
 
@@ -132,8 +139,90 @@ export default function AdminDashboard() {
                   <input placeholder="Badge" value={newProduct.badge} onChange={(e) => setNewProduct({ ...newProduct, badge: e.target.value })} className="border border-white/25 bg-transparent px-3 py-2 text-sm" />
                 </div>
                 <input placeholder="Sizes (comma separated)" value={newProduct.sizes} onChange={(e) => setNewProduct({ ...newProduct, sizes: e.target.value })} className="w-full border border-white/25 bg-transparent px-3 py-2 text-sm" />
-                <input required placeholder="Main image URL" value={newProduct.image} onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })} className="w-full border border-white/25 bg-transparent px-3 py-2 text-sm" />
-                <input placeholder="Hover image URL (optional)" value={newProduct.hoverImage} onChange={(e) => setNewProduct({ ...newProduct, hoverImage: e.target.value })} className="w-full border border-white/25 bg-transparent px-3 py-2 text-sm" />
+                
+                {/* Main Image Upload */}
+                <div>
+                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-white/50">Main image</label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="flex cursor-pointer items-center gap-2 border border-white/25 bg-transparent px-3 py-2 text-sm hover:border-[#ff2d2d]">
+                        <Plus size={14} />
+                        <span>Choose file</span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files[0]
+                            if (file) {
+                              const reader = new FileReader()
+                              reader.onloadend = () => {
+                                setImagePreview(reader.result)
+                                setNewProduct({ ...newProduct, image: reader.result })
+                              }
+                              reader.readAsDataURL(file)
+                            }
+                          }}
+                        />
+                      </label>
+                      {newProduct.image && <span className="text-[10px] text-white/50">Image selected</span>}
+                    </div>
+                    {imagePreview && (
+                      <div className="relative h-32 w-full overflow-hidden border border-white/25">
+                        <img src={imagePreview} alt="Preview" className="h-full w-full object-cover" />
+                        <button 
+                          type="button"
+                          onClick={() => { setImagePreview(''); setNewProduct({ ...newProduct, image: '' }) }}
+                          className="absolute right-2 top-2 rounded bg-black/50 p-1 text-white hover:bg-[#ff2d2d]"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Hover Image Upload */}
+                <div>
+                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-white/50">Hover image (optional)</label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="flex cursor-pointer items-center gap-2 border border-white/25 bg-transparent px-3 py-2 text-sm hover:border-[#ff2d2d]">
+                        <Plus size={14} />
+                        <span>Choose file</span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files[0]
+                            if (file) {
+                              const reader = new FileReader()
+                              reader.onloadend = () => {
+                                setHoverImagePreview(reader.result)
+                                setNewProduct({ ...newProduct, hoverImage: reader.result })
+                              }
+                              reader.readAsDataURL(file)
+                            }
+                          }}
+                        />
+                      </label>
+                      {newProduct.hoverImage && <span className="text-[10px] text-white/50">Image selected</span>}
+                    </div>
+                    {hoverImagePreview && (
+                      <div className="relative h-32 w-full overflow-hidden border border-white/25">
+                        <img src={hoverImagePreview} alt="Preview" className="h-full w-full object-cover" />
+                        <button 
+                          type="button"
+                          onClick={() => { setHoverImagePreview(''); setNewProduct({ ...newProduct, hoverImage: '' }) }}
+                          className="absolute right-2 top-2 rounded bg-black/50 p-1 text-white hover:bg-[#ff2d2d]"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <textarea placeholder="Description" value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} rows={3} className="w-full border border-white/25 bg-transparent px-3 py-2 text-sm" />
                 <button className="flex w-full items-center justify-center gap-2 bg-[#ff2d2d] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em]"><Plus size={14} /> Add product</button>
               </form>

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, Shield } from 'lucide-react'
-import { setToken, setStoredUser, getStoredUser } from '@/lib/session'
+import { setToken, setStoredUser, getStoredUser, clearToken, clearStoredUser } from '@/lib/session'
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('')
@@ -12,13 +12,23 @@ export default function AdminLogin() {
   const router = useRouter()
 
   useEffect(() => {
+    // Clear any existing admin session to prevent auto-login
     const u = getStoredUser()
-    if (u?.role === 'admin') router.push('/admin/dashboard')
-  }, [router])
+    if (u?.role === 'admin') {
+      clearToken()
+      clearStoredUser()
+    }
+  }, [])
+
+  const clearSession = () => {
+    clearToken()
+    clearStoredUser()
+    window.location.reload()
+  }
 
   const submit = async (e) => {
     e.preventDefault(); setError('')
-    const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
+    const res = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
     const data = await res.json()
     if (!res.ok || data.user?.role !== 'admin') { setError(data.error || 'Not an admin account.'); return }
     setToken(data.token); setStoredUser(data.user); router.push('/admin/dashboard')
@@ -41,6 +51,7 @@ export default function AdminLogin() {
           </div>
           {error && <p className="bg-[#ff2d2d]/20 p-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#ff2d2d]">{error}</p>}
           <button className="group flex w-full items-center justify-center gap-3 bg-[#ff2d2d] px-4 py-5 text-[11px] font-bold uppercase tracking-[0.22em] hover:bg-white hover:text-black">Enter admin <ArrowRight size={15} className="transition group-hover:translate-x-1" /></button>
+          <button type="button" onClick={clearSession} className="w-full text-[10px] uppercase tracking-[0.14em] text-white/40 hover:text-white">Clear saved session</button>
         </form>
       </div>
     </main>
