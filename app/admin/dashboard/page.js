@@ -7,6 +7,37 @@ import { authFetch, getStoredUser, clearToken, clearStoredUser, money } from '@/
 
 const CATS = ['Shirt', 'Tshirt', 'Jeans', 'Newdrop', 'Sale']
 
+// Image compression utility
+const compressImage = async (base64String, maxWidth = 800, quality = 0.7) => {
+  if (!base64String) return ''
+  
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.src = base64String
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      let width = img.width
+      let height = img.height
+      
+      // Calculate new dimensions while maintaining aspect ratio
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width
+        width = maxWidth
+      }
+      
+      canvas.width = width
+      canvas.height = height
+      
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, width, height)
+      
+      // Compress the image
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = () => resolve(base64String) // Return original if compression fails
+  })
+}
+
 export default function AdminDashboard() {
   const router = useRouter()
   const [tab, setTab] = useState('products')
@@ -44,15 +75,31 @@ export default function AdminDashboard() {
 
   const addProduct = async (e) => {
     e.preventDefault()
-    const body = { ...newProduct, price: Number(newProduct.price), sizes: newProduct.sizes.split(',').map((s) => s.trim()).filter(Boolean) }
-    const res = await authFetch('/api/admin/products', { method: 'POST', body: JSON.stringify(body) })
-    if (res.ok) { 
-      setNewProduct({ name: '', slug: '', category: 'Shirt', price: '', color: 'Black', image: '', hoverImage: '', description: '', sizes: 'S,M,L,XL', badge: 'New' })
-      setImagePreview('')
-      setHoverImagePreview('')
-      refresh() 
+    
+    // Compress images before sending
+    const compressedImage = await compressImage(newProduct.image)
+    const compressedHoverImage = newProduct.hoverImage ? await compressImage(newProduct.hoverImage) : ''
+    
+    const body = { 
+      ...newProduct, 
+      price: Number(newProduct.price), 
+      sizes: newProduct.sizes.split(',').map((s) => s.trim()).filter(Boolean),
+      image: compressedImage,
+      hoverImage: compressedHoverImage
     }
-    else { const d = await res.json(); alert(d.error || 'Failed') }
+    
+    try {
+      const res = await authFetch('/api/admin/products', { method: 'POST', body: JSON.stringify(body) })
+      if (res.ok) { 
+        setNewProduct({ name: '', slug: '', category: 'Shirt', price: '', color: 'Black', image: '', hoverImage: '', description: '', sizes: 'S,M,L,XL', badge: 'New' })
+        setImagePreview('')
+        setHoverImagePreview('')
+        refresh() 
+      }
+      else { const d = await res.json(); alert(d.error || 'Failed') }
+    } catch (error) {
+      alert('Error adding product: ' + error.message)
+    }
   }
 
   const deleteProduct = async (slug) => {
@@ -152,13 +199,14 @@ export default function AdminDashboard() {
                           type="file" 
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files[0]
                             if (file) {
                               const reader = new FileReader()
-                              reader.onloadend = () => {
-                                setImagePreview(reader.result)
-                                setNewProduct({ ...newProduct, image: reader.result })
+                              reader.onloadend = async () => {
+                                const compressedImage = await compressImage(reader.result)
+                                setImagePreview(compressedImage)
+                                setNewProduct({ ...newProduct, image: compressedImage })
                               }
                               reader.readAsDataURL(file)
                             }
@@ -194,13 +242,14 @@ export default function AdminDashboard() {
                           type="file" 
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files[0]
                             if (file) {
                               const reader = new FileReader()
-                              reader.onloadend = () => {
-                                setHoverImagePreview(reader.result)
-                                setNewProduct({ ...newProduct, hoverImage: reader.result })
+                              reader.onloadend = async () => {
+                                const compressedImage = await compressImage(reader.result)
+                                setHoverImagePreview(compressedImage)
+                                setNewProduct({ ...newProduct, hoverImage: compressedImage })
                               }
                               reader.readAsDataURL(file)
                             }

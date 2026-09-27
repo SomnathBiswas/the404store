@@ -1,0 +1,23 @@
+{
+  "functions": {
+    "app/api/**/*.js": {
+      "maxDuration": 60
+    }
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_API_URL": ""
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Content-Length",
+          "value": "10000000"
+        }
+      ]
+    }
+  ]
+}
