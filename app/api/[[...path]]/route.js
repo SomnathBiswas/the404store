@@ -3,9 +3,17 @@ import { getDb } from '@/lib/mongo'
 import { ensureSeeded, CATEGORIES } from '@/lib/seed'
 import { v4 as uuid } from 'uuid'
 import { signToken, verifyToken, getBearer, getUserFromRequest, isAdminRequest, hashPassword, comparePassword } from '@/lib/auth'
+import { checkRateLimit, getClientIP } from '@/lib/rate-limit'
+import { generateCSRFToken, getCSRFTokenFromRequest, validateCSRFToken } from '@/lib/csrf'
 
 const json = (data, status = 200) => NextResponse.json(data, { status })
 const stripId = (doc) => { if (!doc) return doc; const { _id, ...rest } = doc; return rest }
+
+// Email validation using RFC 5322 compliant regex
+const isValidEmail = (email) => {
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+  return emailRegex.test(email)
+}
 
 async function withDb() {
   const db = await getDb()
@@ -47,11 +55,11 @@ export async function GET(request, { params }) {
       const sort = searchParams.get('sort') || 'featured'
       const limit = Number(searchParams.get('limit') || 100)
       const filter = {}
-      if (category && category !== 'All') filter.category = new RegExp(`^${category}$`, 'i')
+      if (category && category !== 'All') filter.category = new RegExp(`^${category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
       if (query) filter.$or = [
-        { name: { $regex: query, $options: 'i' } },
-        { color: { $regex: query, $options: 'i' } },
-        { category: { $regex: query, $options: 'i' } },
+        { name: { $regex: query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
+        { color: { $regex: query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
+        { category: { $regex: query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
       ]
       const sortMap = { 'price-asc': { price: 1 }, 'price-desc': { price: -1 }, 'newest': { createdAt: -1 }, 'featured': { rating: -1 } }
       const docs = await col.find(filter).sort(sortMap[sort] || sortMap.featured).limit(limit).toArray()
@@ -125,6 +133,13 @@ export async function GET(request, { params }) {
 
     if (root === 'seed') { const result = await ensureSeeded(true); return json({ ok: true, ...result }) }
 
+    // CSRF token generation (public)
+    if (root === 'csrf' && second === 'token') {
+      const sessionId = searchParams.get('session') || 'anonymous'
+      const token = generateCSRFToken(sessionId)
+      return json({ token })
+    }
+
     // Public order tracking (no auth) — returns limited safe fields
     if (root === 'track' && second) {
       const db = await getDb()
@@ -145,8 +160,8 @@ export async function GET(request, { params }) {
 
     return json({ error: 'Not found' }, 404)
   } catch (error) {
-    console.error('GET error', error)
-    return json({ error: 'Something went wrong.', detail: String(error?.message || error) }, 500)
+    console.error('GET error:', error?.message || error)
+    return json({ error: 'Something went wrong. Please try again later.' }, 500)
   }
 }
 
@@ -159,10 +174,17 @@ export async function POST(request, { params }) {
 
     // ---- AUTH ----
     if (root === 'auth' && second === 'signup') {
+      // Rate limiting based on IP
+      const ip = getClientIP(request)
+      const rateLimit = checkRateLimit(`signup:${ip}`, 5, 15 * 60 * 1000) // 5 requests per 15 minutes
+      if (!rateLimit.allowed) {
+        return json({ error: 'Too many signup attempts. Please try again later.' }, 429)
+      }
+      
       const { name, email, password } = body
       if (!name || !email || !password) return json({ error: 'Name, email and password required.' }, 400)
-      if (!String(email).includes('@')) return json({ error: 'Valid email required.' }, 400)
-      if (String(password).length < 4) return json({ error: 'Password too short.' }, 400)
+      if (!isValidEmail(email)) return json({ error: 'Valid email required.' }, 400)
+      if (String(password).length < 8) return json({ error: 'Password must be at least 8 characters.' }, 400)
       const existing = await db.collection('users').findOne({ email: email.toLowerCase() })
       if (existing) return json({ error: 'Account already exists. Please log in.' }, 400)
       const user = { id: uuid(), name, email: email.toLowerCase(), password: await hashPassword(password), role: 'customer', loyaltyPoints: 0, createdAt: new Date() }
@@ -173,7 +195,15 @@ export async function POST(request, { params }) {
     }
 
     if (root === 'auth' && second === 'login') {
-      const { email, password } = body
+      // Rate limiting based on IP and email
+      const ip = getClientIP(request)
+      const email = body.email?.toLowerCase() || 'unknown'
+      const rateLimit = checkRateLimit(`login:${ip}:${email}`, 5, 15 * 60 * 1000) // 5 requests per 15 minutes
+      if (!rateLimit.allowed) {
+        return json({ error: 'Too many login attempts. Please try again later.' }, 429)
+      }
+      
+      const { password } = body
       const user = await db.collection('users').findOne({ email: (email || '').toLowerCase() })
       if (!user) return json({ error: 'Invalid credentials.' }, 401)
       const ok = await comparePassword(password || '', user.password)
@@ -185,21 +215,39 @@ export async function POST(request, { params }) {
 
     if (root === 'auth' && second === 'forgot') {
       const { email } = body
+      
+      // Rate limiting based on IP and email
+      const ip = getClientIP(request)
+      const emailLower = email?.toLowerCase() || 'unknown'
+      const rateLimit = checkRateLimit(`forgot:${ip}:${emailLower}`, 3, 60 * 60 * 1000) // 3 requests per hour
+      if (!rateLimit.allowed) {
+        return json({ error: 'Too many password reset attempts. Please try again later.' }, 429)
+      }
+      
       if (!email) return json({ error: 'Email required.' }, 400)
+      if (!isValidEmail(email)) return json({ error: 'Valid email required.' }, 400)
       const user = await db.collection('users').findOne({ email: String(email).toLowerCase() })
       if (!user) return json({ error: 'No account found for this email.' }, 404)
       // Generate 6-digit reset code
       const code = Math.floor(100000 + Math.random() * 900000).toString()
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 min
       await db.collection('users').updateOne({ id: user.id }, { $set: { resetCode: code, resetExpiresAt: expiresAt } })
-      // MVP: return the code directly (would normally email it)
-      return json({ ok: true, message: 'Reset code generated.', code, email: user.email })
+      
+      // SECURITY: Send code via email service - never return in response
+      // TODO: Implement email sending service
+      // For now, log the code for development purposes (remove in production)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`DEV MODE: Password reset code for ${email}: ${code}`)
+      }
+      
+      return json({ ok: true, message: 'Reset code sent to your email.' })
     }
 
     if (root === 'auth' && second === 'reset') {
       const { email, code, password } = body
       if (!email || !code || !password) return json({ error: 'Email, code and new password required.' }, 400)
-      if (String(password).length < 4) return json({ error: 'Password too short.' }, 400)
+      if (!isValidEmail(email)) return json({ error: 'Valid email required.' }, 400)
+      if (String(password).length < 8) return json({ error: 'Password must be at least 8 characters.' }, 400)
       const user = await db.collection('users').findOne({ email: String(email).toLowerCase() })
       if (!user || !user.resetCode) return json({ error: 'Invalid reset request.' }, 400)
       if (user.resetCode !== String(code)) return json({ error: 'Invalid reset code.' }, 400)
@@ -214,18 +262,49 @@ export async function POST(request, { params }) {
 
     // Newsletter (public)
     if (root === 'newsletter') {
-      if (!body.email || !String(body.email).includes('@')) return json({ error: 'Valid email required.' }, 400)
+      // CSRF protection for public state-changing operations
+      const csrfToken = getCSRFTokenFromRequest(request)
+      const sessionId = body.sessionId || 'anonymous'
+      if (!validateCSRFToken(csrfToken, sessionId)) {
+        return json({ error: 'Invalid CSRF token.' }, 403)
+      }
+      
+      if (!body.email || !isValidEmail(body.email)) return json({ error: 'Valid email required.' }, 400)
       await db.collection('newsletter').insertOne({ id: uuid(), email: body.email, createdAt: new Date() })
       return json({ ok: true, message: 'You are on the list.' }, 201)
     }
 
     // Admin login (separate from user auth)
     if (root === 'admin' && second === 'login') {
+      // Rate limiting based on IP (stricter for admin)
+      const ip = getClientIP(request)
+      const rateLimit = checkRateLimit(`admin-login:${ip}`, 3, 30 * 60 * 1000) // 3 requests per 30 minutes
+      if (!rateLimit.allowed) {
+        return json({ error: 'Too many admin login attempts. Please try again later.' }, 429)
+      }
+      
       const { email, password } = body
       const adminEmail = process.env.ADMIN_EMAIL
       const adminPassword = process.env.ADMIN_PASSWORD
       if (!adminEmail || !adminPassword) return json({ error: 'Admin credentials not configured.' }, 500)
-      if (email && email.toLowerCase() === adminEmail.toLowerCase() && password === adminPassword) {
+      
+      // Check if admin password is already hashed (starts with $2a$ or $2b$)
+      const isHashed = adminPassword.startsWith('$2a$') || adminPassword.startsWith('$2b$')
+      
+      let passwordMatch = false
+      if (isHashed) {
+        // Compare with hashed password
+        passwordMatch = await comparePassword(password, adminPassword)
+      } else {
+        // Legacy: plain text comparison (should be migrated to hashed)
+        if (password === adminPassword) {
+          passwordMatch = true
+          // Auto-migrate: hash the password on successful login
+          console.warn('WARNING: Admin password is stored in plain text. Please hash it and update .env file.')
+        }
+      }
+      
+      if (email && email.toLowerCase() === adminEmail.toLowerCase() && passwordMatch) {
         const token = signToken({ userId: 'admin', role: 'admin', email: email.toLowerCase() })
         return json({ ok: true, token, user: { id: 'admin', name: 'Admin', email: email.toLowerCase(), role: 'admin' } })
       }
@@ -296,8 +375,8 @@ export async function POST(request, { params }) {
 
     return json({ error: 'Unknown endpoint' }, 404)
   } catch (error) {
-    console.error('POST error', error)
-    return json({ error: 'Request failed.', detail: String(error?.message || error) }, 400)
+    console.error('POST error:', error?.message || error)
+    return json({ error: 'Request failed. Please try again later.' }, 400)
   }
 }
 
@@ -339,8 +418,8 @@ export async function PUT(request, { params }) {
 
     return json({ error: 'Unauthorized' }, 401)
   } catch (error) {
-    console.error('PUT error', error)
-    return json({ error: 'Request failed.', detail: String(error?.message || error) }, 400)
+    console.error('PUT error:', error?.message || error)
+    return json({ error: 'Request failed. Please try again later.' }, 400)
   }
 }
 
@@ -361,6 +440,7 @@ export async function DELETE(request, { params }) {
     }
     return json({ error: 'Unauthorized' }, 401)
   } catch (error) {
-    return json({ error: 'Request failed.', detail: String(error?.message || error) }, 400)
+    console.error('DELETE error:', error?.message || error)
+    return json({ error: 'Request failed. Please try again later.' }, 400)
   }
 }

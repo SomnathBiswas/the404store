@@ -45,9 +45,15 @@ DB_NAME=four_o_four_store
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 CORS_ORIGINS=*
 ADMIN_EMAIL=admin@404store.com
-ADMIN_PASSWORD=your-secure-password
+ADMIN_PASSWORD=your-hashed-password
 AUTH_SECRET=your-secret-key
 ```
+
+**Important**: For security, the admin password should be hashed using bcrypt. Run this command to generate a hashed password:
+```bash
+node scripts/hash-admin-password.js your-secure-password
+```
+Then copy the output hash to your `.env` file as `ADMIN_PASSWORD`.
 
 4. Run the development server:
 ```bash
