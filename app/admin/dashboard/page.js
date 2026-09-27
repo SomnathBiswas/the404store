@@ -48,10 +48,13 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState([])
   const [users, setUsers] = useState([])
 
-  const [newProduct, setNewProduct] = useState({ name: '', slug: '', category: 'Shirt', price: '', color: 'Black', image: '', hoverImage: '', description: '', sizes: 'S,M,L,XL', badge: 'New' })
+  const [newProduct, setNewProduct] = useState({ name: '', slug: '', category: 'Shirt', price: '', color: 'Black', image: '', hoverImage: '', description: '', sizes: 'S,M,L,XL', badge: 'New', variants: [] })
   const [imagePreview, setImagePreview] = useState('')
   const [hoverImagePreview, setHoverImagePreview] = useState('')
   const [newCoupon, setNewCoupon] = useState({ code: '', type: 'percent', value: 10, minOrder: 0, expiresAt: '' })
+  const [newVariant, setNewVariant] = useState({ color: '', image: '', hoverImage: '', price: '', stock: 25 })
+  const [variantImagePreview, setVariantImagePreview] = useState('')
+  const [variantHoverImagePreview, setVariantHoverImagePreview] = useState('')
 
   useEffect(() => {
     const u = getStoredUser()
@@ -85,18 +88,28 @@ export default function AdminDashboard() {
     const compressedImage = await compressImage(newProduct.image)
     const compressedHoverImage = newProduct.hoverImage ? await compressImage(newProduct.hoverImage) : ''
     
+    // Compress variant images
+    const compressedVariants = await Promise.all(newProduct.variants.map(async (variant) => ({
+      ...variant,
+      image: variant.image ? await compressImage(variant.image) : '',
+      hoverImage: variant.hoverImage ? await compressImage(variant.hoverImage) : '',
+      price: Number(variant.price) || Number(newProduct.price),
+      stock: Number(variant.stock) || 25
+    })))
+    
     const body = { 
       ...newProduct, 
       price: Number(newProduct.price), 
       sizes: newProduct.sizes.split(',').map((s) => s.trim()).filter(Boolean),
       image: compressedImage,
-      hoverImage: compressedHoverImage
+      hoverImage: compressedHoverImage,
+      variants: compressedVariants
     }
     
     try {
       const res = await authFetch('/api/admin/products', { method: 'POST', body: JSON.stringify(body) })
       if (res.ok) { 
-        setNewProduct({ name: '', slug: '', category: 'Shirt', price: '', color: 'Black', image: '', hoverImage: '', description: '', sizes: 'S,M,L,XL', badge: 'New' })
+        setNewProduct({ name: '', slug: '', category: 'Shirt', price: '', color: 'Black', image: '', hoverImage: '', description: '', sizes: 'S,M,L,XL', badge: 'New', variants: [] })
         setImagePreview('')
         setHoverImagePreview('')
         refresh() 
@@ -105,6 +118,27 @@ export default function AdminDashboard() {
     } catch (error) {
       alert('Error adding product: ' + error.message)
     }
+  }
+
+  const addVariant = () => {
+    if (!newVariant.color) {
+      alert('Color is required')
+      return
+    }
+    setNewProduct({
+      ...newProduct,
+      variants: [...newProduct.variants, { ...newVariant, price: Number(newVariant.price) || Number(newProduct.price) }]
+    })
+    setNewVariant({ color: '', image: '', hoverImage: '', price: '', stock: 25 })
+    setVariantImagePreview('')
+    setVariantHoverImagePreview('')
+  }
+
+  const removeVariant = (index) => {
+    setNewProduct({
+      ...newProduct,
+      variants: newProduct.variants.filter((_, i) => i !== index)
+    })
   }
 
   const deleteProduct = async (slug) => {
@@ -291,6 +325,107 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 </div>
+
+                {/* Color Variants Section */}
+                <div className="border border-white/15 p-4">
+                  <label className="mb-3 block text-[10px] font-bold uppercase tracking-[0.16em] text-white/50">Color variants</label>
+                  
+                  {/* Add new variant form */}
+                  <div className="mb-4 space-y-2 border-b border-white/10 pb-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input 
+                        placeholder="Color name" 
+                        value={newVariant.color} 
+                        onChange={(e) => setNewVariant({ ...newVariant, color: e.target.value })} 
+                        className="border border-white/25 bg-transparent px-2 py-1 text-sm" 
+                      />
+                      <input 
+                        type="number" 
+                        placeholder="Price (optional)" 
+                        value={newVariant.price} 
+                        onChange={(e) => setNewVariant({ ...newVariant, price: e.target.value })} 
+                        className="border border-white/25 bg-transparent px-2 py-1 text-sm" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[9px] text-white/50">Variant image</label>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="w-full text-xs"
+                          onChange={async (e) => {
+                            const file = e.target.files[0]
+                            if (file) {
+                              const reader = new FileReader()
+                              reader.onloadend = async () => {
+                                const compressedImage = await compressImage(reader.result)
+                                setVariantImagePreview(compressedImage)
+                                setNewVariant({ ...newVariant, image: compressedImage })
+                              }
+                              reader.readAsDataURL(file)
+                            }
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-white/50">Hover image (optional)</label>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="w-full text-xs"
+                          onChange={async (e) => {
+                            const file = e.target.files[0]
+                            if (file) {
+                              const reader = new FileReader()
+                              reader.onloadend = async () => {
+                                const compressedImage = await compressImage(reader.result)
+                                setVariantHoverImagePreview(compressedImage)
+                                setNewVariant({ ...newVariant, hoverImage: compressedImage })
+                              }
+                              reader.readAsDataURL(file)
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={addVariant}
+                      className="w-full border border-[#ff2d2d] bg-[#ff2d2d]/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] hover:bg-[#ff2d2d] hover:text-white"
+                    >
+                      + Add color variant
+                    </button>
+                  </div>
+
+                  {/* Existing variants list */}
+                  {newProduct.variants.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-[9px] text-white/50">Current variants:</label>
+                      {newProduct.variants.map((variant, index) => (
+                        <div key={index} className="flex items-center justify-between border border-white/10 p-2">
+                          <div className="flex items-center gap-2">
+                            {variant.image && (
+                              <img src={variant.image} alt={variant.color} className="h-8 w-8 object-cover" />
+                            )}
+                            <div>
+                              <p className="text-xs font-bold">{variant.color}</p>
+                              <p className="text-[10px] text-white/50">{variant.price ? `₹${variant.price}` : 'Default price'}</p>
+                            </div>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => removeVariant(index)}
+                            className="p-1 text-white/60 hover:text-[#ff2d2d]"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <textarea placeholder="Description" value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} rows={3} className="w-full border border-white/25 bg-transparent px-3 py-2 text-sm" />
                 <button className="flex w-full items-center justify-center gap-2 bg-[#ff2d2d] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em]"><Plus size={14} /> Add product</button>
               </form>
@@ -299,20 +434,40 @@ export default function AdminDashboard() {
               <h3 className="mb-4 text-xl font-black uppercase tracking-[-.05em]">All products ({products.length})</h3>
               <div className="space-y-2 max-h-[70vh] overflow-auto pr-2">
                 {products.map((p) => (
-                  <div key={p.slug} className="flex items-center gap-3 border border-white/15 p-3">
-                    {p.image ? (
-                      <img src={p.image} alt={p.name} className="h-16 w-14 object-cover" />
-                    ) : (
-                      <div className="h-16 w-14 bg-white/10 flex items-center justify-center text-white/30">
-                        <Package size={20} />
+                  <div key={p.slug} className="border border-white/15 p-3">
+                    <div className="flex items-center gap-3">
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} className="h-16 w-14 object-cover" />
+                      ) : (
+                        <div className="h-16 w-14 bg-white/10 flex items-center justify-center text-white/30">
+                          <Package size={20} />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-bold">{p.name}</p>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-white/50">{p.category} · {p.slug}</p>
+                        {p.variants && p.variants.length > 0 && (
+                          <p className="text-[9px] text-[#ff2d2d]">{p.variants.length} color variants</p>
+                        )}
+                      </div>
+                      <input type="number" defaultValue={p.price} onBlur={(e) => { if (Number(e.target.value) !== p.price) updateProductPrice(p.slug, e.target.value) }} className="w-24 border border-white/25 bg-transparent px-2 py-1 text-sm" />
+                      <button onClick={() => deleteProduct(p.slug)} className="p-2 text-white/60 hover:text-[#ff2d2d]"><Trash2 size={14} /></button>
+                    </div>
+                    
+                    {/* Show color variants */}
+                    {p.variants && p.variants.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2 border-t border-white/10 pt-2">
+                        {p.variants.map((variant, index) => (
+                          <div key={index} className="flex items-center gap-2 bg-white/5 px-2 py-1">
+                            {variant.image && (
+                              <img src={variant.image} alt={variant.color} className="h-6 w-6 object-cover" />
+                            )}
+                            <span className="text-[10px] font-bold uppercase">{variant.color}</span>
+                            <span className="text-[9px] text-white/50">₹{variant.price}</span>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-bold">{p.name}</p>
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-white/50">{p.category} · {p.slug}</p>
-                    </div>
-                    <input type="number" defaultValue={p.price} onBlur={(e) => { if (Number(e.target.value) !== p.price) updateProductPrice(p.slug, e.target.value) }} className="w-24 border border-white/25 bg-transparent px-2 py-1 text-sm" />
-                    <button onClick={() => deleteProduct(p.slug)} className="p-2 text-white/60 hover:text-[#ff2d2d]"><Trash2 size={14} /></button>
                   </div>
                 ))}
               </div>

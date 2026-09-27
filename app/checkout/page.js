@@ -285,12 +285,12 @@ export default function CheckoutPage() {
                 <h3 className="mb-6 text-sm font-bold uppercase tracking-[0.14em]">Order items</h3>
                 <div className="space-y-4">
                   {cart.map((item, index) => (
-                    <div key={index} className="flex gap-4">
+                    <div key={`${item.slug}-${item.color}-${item.size}-${index}`} className="flex gap-4">
                       <img src={item.image} alt={item.name} className="h-20 w-16 object-cover" />
                       <div className="flex-1">
                         <p className="text-sm font-bold">{item.name}</p>
                         <p className="text-[10px] uppercase tracking-[0.12em] text-black/50">
-                          {item.color} · {item.size} · Qty: {item.quantity}
+                          <span className="font-bold text-black">{item.color}</span> · {item.size} · Qty: {item.quantity}
                         </p>
                         <p className="mt-1 text-sm font-bold">{money(item.price * item.quantity)}</p>
                       </div>

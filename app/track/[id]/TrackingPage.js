@@ -143,7 +143,9 @@ export default function TrackingPage({ initialData, orderId }) {
                 <img src={i.image} alt={i.name} className="h-20 w-16 shrink-0 object-cover" />
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-[13px] font-bold uppercase tracking-[0.08em]">{i.name}</p>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-black/50">Size {i.size} · qty {i.quantity}</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-black/50">
+                    <span className="font-bold text-black">{i.color}</span> · Size {i.size} · qty {i.quantity}
+                  </p>
                 </div>
                 <p className="text-[12px] font-bold">{money(i.price * i.quantity)}</p>
               </div>

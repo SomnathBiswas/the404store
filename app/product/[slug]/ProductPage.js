@@ -11,6 +11,7 @@ export default function ProductPage({ initialData, slug }) {
   const router = useRouter()
   const [data, setData] = useState(initialData)
   const [selectedSize, setSelectedSize] = useState(null)
+  const [selectedColor, setSelectedColor] = useState(null)
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
   const [wishlisted, setWishlisted] = useState(false)
@@ -33,9 +34,46 @@ export default function ProductPage({ initialData, slug }) {
   useEffect(() => {
     refreshCart()
     if (data?.product?.sizes?.length) setSelectedSize(data.product.sizes[0])
+    if (data?.product) {
+      // Set default color to product's main color or first variant
+      const defaultColor = data.product.variants && data.product.variants.length > 0 
+        ? data.product.variants[0].color 
+        : data.product.color
+      setSelectedColor(defaultColor)
+    }
     const wl = JSON.parse(window.localStorage.getItem('404-wishlist') || '[]')
     setWishlisted(wl.includes(slug))
   }, [data, slug])
+
+  // Update gallery when color changes
+  useEffect(() => {
+    if (selectedColor && data?.product?.variants) {
+      const variant = data.product.variants.find(v => v.color === selectedColor)
+      if (variant) {
+        setGalleryIndex(0) // Reset gallery when color changes
+      }
+    }
+  }, [selectedColor, data])
+
+  // Get current images based on selected color
+  const getCurrentImages = () => {
+    if (!data?.product) return []
+    
+    if (selectedColor && data.product.variants) {
+      const variant = data.product.variants.find(v => v.color === selectedColor)
+      if (variant) {
+        return [variant.image, variant.hoverImage].filter(Boolean)
+      }
+    }
+    
+    // Fallback to main product images
+    return [data.product.image, data.product.hoverImage].filter(Boolean)
+  }
+
+  const currentGallery = getCurrentImages()
+  const currentPrice = selectedColor && data?.product?.variants 
+    ? (data.product.variants.find(v => v.color === selectedColor)?.price || data.product.price)
+    : data?.product?.price
 
   if (!data || !data.product) {
     return (
@@ -50,13 +88,21 @@ export default function ProductPage({ initialData, slug }) {
   }
 
   const { product, related } = data
-  const gallery = [product.image, product.hoverImage].filter(Boolean)
+  const gallery = currentGallery
 
   const addToBag = () => {
     const cart = JSON.parse(window.localStorage.getItem('404-cart') || '[]')
-    const existing = cart.find((it) => it.slug === product.slug && it.size === selectedSize)
+    const existing = cart.find((it) => it.slug === product.slug && it.size === selectedSize && it.color === selectedColor)
     if (existing) existing.quantity += quantity
-    else cart.push({ slug: product.slug, name: product.name, price: product.price, image: product.image, color: product.color, size: selectedSize, quantity })
+    else cart.push({ 
+      slug: product.slug, 
+      name: product.name, 
+      price: currentPrice, 
+      image: currentGallery[0], 
+      color: selectedColor, 
+      size: selectedSize, 
+      quantity 
+    })
     window.localStorage.setItem('404-cart', JSON.stringify(cart))
     refreshCart()
     setAdded(true)
@@ -117,10 +163,39 @@ export default function ProductPage({ initialData, slug }) {
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-black/50">{product.category} / Drop 01</p>
             <h1 className="mt-4 text-5xl font-black uppercase leading-[.82] tracking-[-.08em] md:text-7xl">{product.name}</h1>
-            <div className="mt-6 flex items-center gap-4"><span className="text-2xl font-bold">{money(product.price)}</span>{product.originalPrice && <span className="text-base text-black/40 line-through">{money(product.originalPrice)}</span>}</div>
+            <div className="mt-6 flex items-center gap-4">
+              <span className="text-2xl font-bold">{money(currentPrice)}</span>
+              {product.originalPrice && <span className="text-base text-black/40 line-through">{money(product.originalPrice)}</span>}
+            </div>
             <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-black/50">★★★★★ {product.rating} · {product.reviews} reviews</p>
 
-            <div className="mt-8"><p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-black/50">Color</p><div className="inline-flex items-center gap-3 border border-black px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em]"><span className="h-3 w-3 rounded-full bg-black" /> {product.color}</div></div>
+            <div className="mt-8">
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-black/50">Color</p>
+              <div className="flex flex-wrap gap-2">
+                {product.variants && product.variants.length > 0 ? (
+                  product.variants.map((variant) => (
+                    <button
+                      key={variant.color}
+                      onClick={() => setSelectedColor(variant.color)}
+                      className={`flex items-center gap-2 border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition ${
+                        selectedColor === variant.color 
+                          ? 'border-black bg-black text-white' 
+                          : 'border-black/30 hover:border-black'
+                      }`}
+                    >
+                      {variant.image && (
+                        <img src={variant.image} alt={variant.color} className="h-4 w-4 object-cover" />
+                      )}
+                      {variant.color}
+                    </button>
+                  ))
+                ) : (
+                  <div className="inline-flex items-center gap-3 border border-black px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em]">
+                    <span className="h-3 w-3 rounded-full bg-black" /> {product.color}
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="mt-8"><div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.2em]"><span className="text-black/50">Select size</span><button className="underline">Size guide ↗</button></div><div className="grid grid-cols-5 gap-2">{product.sizes.map((size) => (<button key={size} onClick={() => setSelectedSize(size)} className={`border py-3 text-[11px] font-bold transition ${selectedSize === size ? 'border-black bg-black text-white' : 'border-black/30 hover:border-black'}`}>{size}</button>))}</div></div>
 
