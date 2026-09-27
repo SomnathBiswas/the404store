@@ -61,14 +61,19 @@ export default function AdminDashboard() {
   }, [router])
 
   const refresh = async () => {
-    const [s, p, c, o, u] = await Promise.all([
-      authFetch('/api/admin/stats').then((r) => r.ok ? r.json() : { stats: {} }),
-      authFetch('/api/admin/products').then((r) => r.ok ? r.json() : { products: [] }),
-      authFetch('/api/admin/coupons').then((r) => r.ok ? r.json() : { coupons: [] }),
-      authFetch('/api/admin/orders').then((r) => r.ok ? r.json() : { orders: [] }),
-      authFetch('/api/admin/users').then((r) => r.ok ? r.json() : { users: [] }),
-    ])
-    setStats(s.stats); setProducts(p.products || []); setCoupons(c.coupons || []); setOrders(o.orders || []); setUsers(u.users || [])
+    try {
+      const [s, p, c, o, u] = await Promise.all([
+        authFetch('/api/admin/stats').then((r) => r.ok ? r.json() : { stats: {} }),
+        authFetch('/api/admin/products').then((r) => r.ok ? r.json() : { products: [] }),
+        authFetch('/api/admin/coupons').then((r) => r.ok ? r.json() : { coupons: [] }),
+        authFetch('/api/admin/orders').then((r) => r.ok ? r.json() : { orders: [] }),
+        authFetch('/api/admin/users').then((r) => r.ok ? r.json() : { users: [] }),
+      ])
+      setStats(s.stats); setProducts(p.products || []); setCoupons(c.coupons || []); setOrders(o.orders || []); setUsers(u.users || [])
+    } catch (error) {
+      console.error('Error refreshing data:', error)
+      alert('Failed to load data. Please try again.')
+    }
   }
 
   const doLogout = () => { clearToken(); clearStoredUser(); router.push('/') }
@@ -106,6 +111,20 @@ export default function AdminDashboard() {
     if (!confirm('Delete this product?')) return
     await authFetch(`/api/admin/products/${slug}`, { method: 'DELETE' })
     refresh()
+  }
+
+  // Fetch individual product with full image data
+  const fetchProductDetails = async (slug) => {
+    try {
+      const res = await authFetch(`/api/admin/products/${slug}`)
+      if (res.ok) {
+        const data = await res.json()
+        return data.product
+      }
+    } catch (error) {
+      console.error('Error fetching product details:', error)
+    }
+    return null
   }
 
   const updateProductPrice = async (slug, price) => {
@@ -281,7 +300,13 @@ export default function AdminDashboard() {
               <div className="space-y-2 max-h-[70vh] overflow-auto pr-2">
                 {products.map((p) => (
                   <div key={p.slug} className="flex items-center gap-3 border border-white/15 p-3">
-                    <img src={p.image} alt={p.name} className="h-16 w-14 object-cover" />
+                    {p.image ? (
+                      <img src={p.image} alt={p.name} className="h-16 w-14 object-cover" />
+                    ) : (
+                      <div className="h-16 w-14 bg-white/10 flex items-center justify-center text-white/30">
+                        <Package size={20} />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="truncate text-sm font-bold">{p.name}</p>
                       <p className="text-[10px] uppercase tracking-[0.14em] text-white/50">{p.category} · {p.slug}</p>

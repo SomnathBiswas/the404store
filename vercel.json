@@ -1,23 +1,13 @@
 {
   "functions": {
     "app/api/**/*.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "memory": 1024
     }
   },
   "build": {
     "env": {
       "NEXT_PUBLIC_API_URL": ""
     }
-  },
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Content-Length",
-          "value": "10000000"
-        }
-      ]
-    }
-  ]
+  }
 }

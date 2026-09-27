@@ -9,6 +9,18 @@ import { generateCSRFToken, getCSRFTokenFromRequest, validateCSRFToken } from '@
 const json = (data, status = 200) => NextResponse.json(data, { status })
 const stripId = (doc) => { if (!doc) return doc; const { _id, ...rest } = doc; return rest }
 
+// Strip large image data from responses to prevent payload size issues
+const stripLargeImages = (doc) => {
+  if (!doc) return doc
+  const { _id, image, hoverImage, ...rest } = doc
+  // Return only image URLs, not full base64 data for admin lists
+  return {
+    ...rest,
+    hasImage: !!image,
+    hasHoverImage: !!hoverImage
+  }
+}
+
 // Email validation using RFC 5322 compliant regex
 const isValidEmail = (email) => {
   const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
@@ -53,7 +65,7 @@ export async function GET(request, { params }) {
       const category = searchParams.get('category')
       const query = searchParams.get('q')?.toLowerCase()
       const sort = searchParams.get('sort') || 'featured'
-      const limit = Number(searchParams.get('limit') || 100)
+      const limit = Number(searchParams.get('limit') || 50) // Reduced default limit
       const filter = {}
       if (category && category !== 'All') filter.category = new RegExp(`^${category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
       if (query) filter.$or = [
@@ -104,19 +116,26 @@ export async function GET(request, { params }) {
       if (!isAdminRequest(request)) return json({ error: 'Unauthorized' }, 401)
       const db = await getDb()
       if (second === 'products') {
-        const docs = await db.collection('products').find({}).sort({ createdAt: -1 }).toArray()
-        return json({ products: docs.map(stripId) })
+        // Check if requesting a specific product with full details
+        if (third) {
+          const product = await db.collection('products').findOne({ slug: third })
+          if (!product) return json({ error: 'Not found' }, 404)
+          return json({ product: stripId(product) })
+        }
+        // For list view, strip large image data to prevent payload size issues
+        const docs = await db.collection('products').find({}).sort({ createdAt: -1 }).limit(50).toArray()
+        return json({ products: docs.map(stripLargeImages) })
       }
       if (second === 'coupons') {
-        const docs = await db.collection('coupons').find({}).sort({ createdAt: -1 }).toArray()
+        const docs = await db.collection('coupons').find({}).sort({ createdAt: -1 }).limit(50).toArray()
         return json({ coupons: docs.map(stripId) })
       }
       if (second === 'orders') {
-        const docs = await db.collection('orders').find({}).sort({ createdAt: -1 }).toArray()
+        const docs = await db.collection('orders').find({}).sort({ createdAt: -1 }).limit(50).toArray()
         return json({ orders: docs.map(stripId) })
       }
       if (second === 'users') {
-        const docs = await db.collection('users').find({}, { projection: { password: 0 } }).sort({ createdAt: -1 }).toArray()
+        const docs = await db.collection('users').find({}, { projection: { password: 0 } }).sort({ createdAt: -1 }).limit(50).toArray()
         return json({ users: docs.map(stripId) })
       }
       if (second === 'stats') {
