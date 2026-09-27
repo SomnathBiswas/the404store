@@ -30,22 +30,27 @@ const ProductCard = ({ product, onAdd, wishlist, onWishlist, index = 0 }) => {
   return (
     <article className={`group relative ${index % 4 === 1 ? 'md:translate-y-8' : ''}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <Link href={`/product/${product.slug}`} className="relative block aspect-[3/4] w-full overflow-hidden bg-[#e2ded6]">
-        <img src={hovered ? (product.hoverImage || product.image) : product.image} alt={product.name} className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]" />
-        <span className="absolute left-3 top-3 bg-white px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-black">{product.badge}</span>
-        <span className="absolute bottom-3 left-3 flex translate-y-2 items-center gap-2 bg-[#ff2d2d] px-3 py-2 text-[9px] font-bold uppercase tracking-[0.18em] text-white opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100">View piece <ArrowUpRight size={12} /></span>
+        <img 
+          src={hovered ? (product.hoverImage || product.image) : product.image} 
+          alt={product.name} 
+          loading="lazy"
+          className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]" 
+        />
+        <span className="absolute left-2 top-2 bg-white px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-black md:left-3 md:top-3 md:px-2 md:py-1 md:text-[9px]">{product.badge}</span>
+        <span className="absolute bottom-2 left-2 flex translate-y-2 items-center gap-1.5 bg-[#ff2d2d] px-2 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-white opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100 md:bottom-3 md:left-3 md:gap-2 md:px-3 md:py-2 md:text-[9px]">View piece <ArrowUpRight size={10} /></span>
       </Link>
-      <div className="flex items-start justify-between gap-3 border-b border-black/15 py-3">
+      <div className="flex flex-col gap-2 border-b border-black/15 py-2 md:py-3">
         <Link href={`/product/${product.slug}`} className="text-left">
-          <h3 className="text-[12px] font-bold uppercase tracking-[0.08em]">{product.name}</h3>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-black/50">{product.color} · {product.category}</p>
-          <p className="mt-2 text-[12px] font-bold">
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.08em] line-clamp-2 md:text-[12px]">{product.name}</h3>
+          <p className="mt-1 text-[8px] uppercase tracking-[0.12em] text-black/50 truncate md:text-[10px]">{product.color} · {product.category}</p>
+          <p className="mt-2 text-[10px] font-bold md:text-[12px]">
             {money(product.price)}
-            {product.originalPrice && <span className="ml-2 text-black/40 line-through">{money(product.originalPrice)}</span>}
+            {product.originalPrice && <span className="ml-1 text-black/40 line-through text-[9px] md:ml-2 md:text-[12px]">{money(product.originalPrice)}</span>}
           </p>
         </Link>
-        <div className="flex items-center gap-1">
-          <button aria-label={`Wishlist ${product.name}`} type="button" onClick={() => onWishlist(product)} className={`p-1 transition ${wishlist ? 'text-[#ff2d2d]' : 'text-black/50 hover:text-black'}`}><Heart size={15} fill={wishlist ? 'currentColor' : 'none'} strokeWidth={1.5} /></button>
-          <button type="button" onClick={() => onAdd(product)} className="border border-black px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] transition hover:bg-black hover:text-white">Quick add</button>
+        <div className="flex items-center justify-between gap-1 md:gap-2">
+          <button aria-label={`Wishlist ${product.name}`} type="button" onClick={() => onWishlist(product)} className={`p-1 transition ${wishlist ? 'text-[#ff2d2d]' : 'text-black/50 hover:text-black'}`}><Heart size={12} fill={wishlist ? 'currentColor' : 'none'} strokeWidth={1.5} /></button>
+          <button type="button" onClick={() => onAdd(product)} className="border border-black px-1.5 py-1 text-[7px] font-bold uppercase tracking-[0.12em] transition hover:bg-black hover:text-white md:px-2 md:py-1 md:text-[9px]">Quick add</button>
         </div>
       </div>
     </article>
@@ -205,43 +210,43 @@ const App = () => {
       <StoreNav activeCategory={activeCategory} onCategory={(c) => { setActiveCategory(c); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} onSearch={() => setSearchOpen(true)} onCart={() => setCartOpen(true)} cartCount={cartCount} wishlistCount={wishlist.length} />
 
       {/* HERO */}
-      <section id="top" className="relative grid min-h-[720px] grid-cols-1 bg-[#0a0a0a] text-white md:min-h-[900px] md:grid-cols-[1.05fr_.95fr]">
-        <div className="relative z-10 flex flex-col justify-end px-5 pb-10 pt-28 md:px-12 md:pb-20 md:pt-40">
-          <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.3em] text-[#ff2d2d] md:mb-6">The 404 store / collection 01 / 2026</p>
-          <h1 className="max-w-[720px] text-[clamp(56px,15vw,190px)] font-black uppercase leading-[.76] tracking-[-.1em]">Style<br /><span className="ml-[10vw] text-[#f4f1eb]">not</span><br />found<span className="text-[#ff2d2d]">.</span></h1>
-          <div className="mt-8 flex flex-col items-start gap-4 md:mt-12 md:flex-row md:items-end md:justify-between md:gap-8 md:max-w-xl"><p className="max-w-[240px] text-[11px] leading-[1.6] text-white/60">Clothes for people who don't dress to fit in. Drop one is online now.</p><a href="#drop" className="flex items-center gap-2 border-b border-[#ff2d2d] pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#ff2d2d]">Shop new drop <ArrowDownRight size={15} /></a></div>
+      <section id="top" className="relative grid min-h-[600px] grid-cols-1 bg-[#0a0a0a] text-white md:min-h-[900px] md:grid-cols-[1.05fr_.95fr]">
+        <div className="relative z-10 flex flex-col justify-end px-4 pb-8 pt-20 md:px-12 md:pb-20 md:pt-40">
+          <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.3em] text-[#ff2d2d] md:mb-6 md:text-[10px]">The 404 store / collection 01 / 2026</p>
+          <h1 className="max-w-[720px] text-[clamp(40px,12vw,150px)] font-black uppercase leading-[.76] tracking-[-.1em] md:text-[clamp(56px,15vw,190px)]">Style<br /><span className="ml-[8vw] md:ml-[10vw] text-[#f4f1eb]">not</span><br />found<span className="text-[#ff2d2d]">.</span></h1>
+          <div className="mt-6 flex flex-col items-start gap-3 md:mt-12 md:flex-row md:items-end md:justify-between md:gap-8 md:max-w-xl"><p className="max-w-[200px] text-[10px] leading-[1.5] text-white/60 md:max-w-[240px] md:text-[11px]">Clothes for people who don't dress to fit in. Drop one is online now.</p><a href="#drop" className="flex items-center gap-2 border-b border-[#ff2d2d] pb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-[#ff2d2d] md:text-[10px]">Shop new drop <ArrowDownRight size={13} /></a></div>
         </div>
-        <div className="relative min-h-[380px] overflow-hidden md:min-h-0"><img src={HERO_IMG} alt="campaign" className="h-full w-full object-cover transition duration-1000 hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" /><div className="absolute right-4 top-6 flex flex-col gap-2 text-right text-[9px] uppercase tracking-[0.2em] text-white/60 md:right-10 md:top-40"><span>Drop 01</span><span>01 — 15</span></div><div className="absolute bottom-5 right-4 max-w-[150px] text-right text-[10px] leading-[1.5] text-white/70 md:right-10 md:bottom-7">A uniform for the uncertain. <span className="text-[#ff2d2d]">Designed in India.</span></div></div>
-        <div className="absolute bottom-4 left-5 hidden items-center gap-3 text-[9px] uppercase tracking-[0.2em] text-white/50 md:flex md:left-12 md:bottom-5"><span className="h-8 w-px bg-[#ff2d2d]" /> Scroll to explore</div>
+        <div className="relative min-h-[300px] overflow-hidden md:min-h-0"><img src={HERO_IMG} alt="campaign" loading="eager" className="h-full w-full object-cover transition duration-1000 hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" /><div className="absolute right-3 top-4 flex flex-col gap-2 text-right text-[8px] uppercase tracking-[0.2em] text-white/60 md:right-10 md:top-40 md:text-[9px]"><span>Drop 01</span><span>01 — 15</span></div><div className="absolute bottom-4 right-3 max-w-[120px] text-right text-[9px] leading-[1.4] text-white/70 md:right-10 md:bottom-7 md:max-w-[150px] md:text-[10px]">A uniform for the uncertain. <span className="text-[#ff2d2d]">Designed in India.</span></div></div>
+        <div className="absolute bottom-3 left-4 hidden items-center gap-2 text-[8px] uppercase tracking-[0.2em] text-white/50 md:flex md:left-12 md:bottom-5 md:text-[9px] md:gap-3"><span className="h-6 w-px bg-[#ff2d2d]" /> Scroll to explore</div>
       </section>
 
       <Marquee>THE 404 STORE · NEW DROP · STYLE NOT FOUND · NOTHING ORDINARY</Marquee>
 
-      <section className="container mx-auto px-4 py-16 md:px-10 md:py-36">
-        <div className="mb-8 flex items-end justify-between md:mb-10"><div><p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-black/45 md:mb-4">Find your frequency / 01</p><h2 className="text-4xl font-black uppercase leading-[.85] tracking-[-.08em] md:text-8xl">Shop<br /><span className="ml-8 text-[#ff2d2d] md:ml-16">the unknown</span></h2></div><ArrowDownRight className="hidden md:block" size={50} strokeWidth={1} /></div>
+      <section className="container mx-auto px-4 py-12 md:px-10 md:py-36">
+        <div className="mb-6 flex items-end justify-between md:mb-10"><div><p className="mb-2 text-[9px] font-bold uppercase tracking-[0.2em] text-black/45 md:mb-4 md:text-[10px]">Find your frequency / 01</p><h2 className="text-3xl font-black uppercase leading-[.85] tracking-[-.08em] md:text-8xl">Shop<br /><span className="ml-4 text-[#ff2d2d] md:ml-16">the unknown</span></h2></div><ArrowDownRight className="hidden md:block" size={50} strokeWidth={1} /></div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-start">
-          <button type="button" onClick={() => { setActiveCategory('Shirt'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative h-[360px] overflow-hidden text-left md:col-span-5 md:h-[620px]"><img src={CAT_A} alt="Shirts" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /><div className="absolute inset-0 bg-black/15 transition group-hover:bg-black/0" /><span className="absolute bottom-4 left-4 text-4xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-3 md:bottom-5 md:left-5 md:text-7xl">Shirt <ArrowRight className="inline" size={30} /></span></button>
+          <button type="button" onClick={() => { setActiveCategory('Shirt'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative h-[280px] overflow-hidden text-left md:col-span-5 md:h-[620px]"><img src={CAT_A} alt="Shirts" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /><div className="absolute inset-0 bg-black/15 transition group-hover:bg-black/0" /><span className="absolute bottom-3 left-3 text-3xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-2 md:bottom-5 md:left-5 md:text-7xl">Shirt <ArrowRight className="inline" size={24} /></span></button>
           <div className="grid gap-3 md:col-span-7 md:grid-cols-2">
-            <button type="button" onClick={() => { setActiveCategory('Tshirt'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative h-[300px] overflow-hidden text-left md:h-[420px]"><img src={CAT_B} alt="Tshirts" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /><span className="absolute bottom-4 left-4 text-4xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-3 md:bottom-5 md:left-5 md:text-5xl">Tshirt <ArrowRight className="inline" size={26} /></span></button>
-            <button type="button" onClick={() => { setActiveCategory('Jeans'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative mt-0 h-[300px] overflow-hidden bg-[#ff2d2d] text-left md:mt-20 md:h-[420px]"><img src={SOCIALS[2]} alt="Jeans" className="h-full w-full object-cover mix-blend-multiply transition duration-700 group-hover:scale-105" /><span className="absolute bottom-4 left-4 text-4xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-3 md:bottom-5 md:left-5 md:text-5xl">Jeans <ArrowRight className="inline" size={26} /></span></button>
+            <button type="button" onClick={() => { setActiveCategory('Tshirt'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative h-[240px] overflow-hidden text-left md:h-[420px]"><img src={CAT_B} alt="Tshirts" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /><span className="absolute bottom-3 left-3 text-3xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-2 md:bottom-5 md:left-5 md:text-5xl">Tshirt <ArrowRight className="inline" size={20} /></span></button>
+            <button type="button" onClick={() => { setActiveCategory('Jeans'); document.getElementById('drop')?.scrollIntoView({ behavior: 'smooth' }) }} className="group relative mt-0 h-[240px] overflow-hidden bg-[#ff2d2d] text-left md:mt-20 md:h-[420px]"><img src={SOCIALS[2]} alt="Jeans" loading="lazy" className="h-full w-full object-cover mix-blend-multiply transition duration-700 group-hover:scale-105" /><span className="absolute bottom-3 left-3 text-3xl font-black uppercase tracking-[-.08em] text-white transition group-hover:translate-x-2 md:bottom-5 md:left-5 md:text-5xl">Jeans <ArrowRight className="inline" size={20} /></span></button>
           </div>
         </div>
       </section>
 
-      <section id="drop" className="border-t border-black/15 px-5 py-24 md:px-10 md:py-32">
+      <section id="drop" className="border-t border-black/15 px-4 py-16 md:px-10 md:py-32">
         <div className="container mx-auto">
-          <div className="mb-12 flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><p className="mb-4 text-[10px] font-bold uppercase tracking-[0.25em] text-black/45">Just landed / Drop 01</p><h2 className="text-6xl font-black uppercase leading-[.78] tracking-[-.09em] md:text-[130px]">Shop<br /><span className="ml-12 text-[#ff2d2d]">everything</span></h2></div><div className="max-w-[220px] text-[11px] uppercase leading-[1.5] tracking-[0.08em] text-black/55">Nothing basic. Heavyweight essentials and strange little details.</div></div>
-          <div className="mb-8 flex items-center gap-2 overflow-auto border-b border-black/15 pb-3 text-[10px] font-bold uppercase tracking-[0.18em]">
-            <span className="mr-3 text-black/40">Filter</span>
-            {CATEGORIES.map((category) => (<button type="button" key={category} onClick={() => setActiveCategory(category)} className={`whitespace-nowrap px-3 py-2 transition ${activeCategory === category ? 'bg-black text-white' : 'hover:bg-black/10'}`}>{category === 'Newdrop' ? 'New Drop' : category}</button>))}
-            <button type="button" onClick={() => setSearchOpen(true)} className="ml-auto flex items-center gap-2 whitespace-nowrap"><Search size={13} /> Search {query ? `(${query})` : ''}</button>
+          <div className="mb-8 flex flex-col justify-between gap-4 md:mb-12 md:flex-row md:items-end"><div><p className="mb-3 text-[9px] font-bold uppercase tracking-[0.25em] text-black/45 md:mb-4 md:text-[10px]">Just landed / Drop 01</p><h2 className="text-4xl font-black uppercase leading-[.78] tracking-[-.09em] md:text-6xl md:text-[130px]">Shop<br /><span className="ml-8 text-[#ff2d2d] md:ml-12">everything</span></h2></div><div className="max-w-[180px] text-[10px] uppercase leading-[1.4] tracking-[0.08em] text-black/55 md:max-w-[220px] md:text-[11px]">Nothing basic. Heavyweight essentials and strange little details.</div></div>
+          <div className="mb-6 flex flex-wrap items-center gap-2 overflow-x-auto border-b border-black/15 pb-3 text-[9px] font-bold uppercase tracking-[0.18em] md:mb-8 md:gap-3 md:text-[10px]">
+            <span className="mr-2 text-black/40 md:mr-3">Filter</span>
+            {CATEGORIES.map((category) => (<button type="button" key={category} onClick={() => setActiveCategory(category)} className={`whitespace-nowrap px-2 py-1 md:px-3 md:py-2 transition ${activeCategory === category ? 'bg-black text-white' : 'hover:bg-black/10'}`}>{category === 'Newdrop' ? 'New Drop' : category}</button>))}
+            <button type="button" onClick={() => setSearchOpen(true)} className="ml-auto flex items-center gap-2 whitespace-nowrap"><Search size={12} /> Search {query ? `(${query})` : ''}</button>
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-10 md:grid-cols-4 md:gap-x-5">{products.map((product, index) => <ProductCard key={product.slug} product={product} index={index} onAdd={addToCart} wishlist={wishlist.includes(product.slug)} onWishlist={toggleWishlist} />)}</div>
-          {!products.length && <p className="py-16 text-center text-sm uppercase tracking-[0.16em] text-black/50">No pieces found. Try another signal.</p>}
+          <div className="grid grid-cols-2 gap-x-2 gap-y-8 md:gap-x-5 md:gap-y-10 md:grid-cols-4">{products.map((product, index) => <ProductCard key={product.slug} product={product} index={index} onAdd={addToCart} wishlist={wishlist.includes(product.slug)} onWishlist={toggleWishlist} />)}</div>
+          {!products.length && <p className="py-12 text-center text-xs uppercase tracking-[0.16em] text-black/50 md:py-16 md:text-sm">No pieces found. Try another signal.</p>}
         </div>
       </section>
 
-      <section className="relative min-h-[760px] overflow-hidden bg-[#0a0a0a] md:min-h-[880px]"><img src={EDITORIAL_IMG} alt="Editorial" className="absolute inset-0 h-full w-full object-cover opacity-70" /><div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" /><div className="relative z-10 flex min-h-[760px] flex-col justify-between p-6 text-white md:min-h-[880px] md:p-12"><div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.22em]"><span>Editorial / 004</span><span>Read the story ↗</span></div><div><h2 className="glitch text-[clamp(80px,17vw,250px)] font-black uppercase leading-[.72] tracking-[-.11em]">The<br /><span className="ml-[16vw]">new</span><br />normal<span className="text-[#ff2d2d]">.</span></h2><div className="mt-10 flex max-w-2xl flex-col justify-between gap-8 md:flex-row md:items-end"><p className="max-w-[340px] text-[12px] leading-[1.6] text-white/80">Clothes designed for people who don't dress to fit in. We explore everyday silhouettes through unexpected proportions, textures and attitude.</p><button type="button" className="flex items-center gap-2 text-left text-[10px] font-bold uppercase tracking-[0.2em]">Read the story <ArrowRight size={16} /></button></div></div></div></section>
+      <section className="relative min-h-[500px] overflow-hidden bg-[#0a0a0a] md:min-h-[880px]"><img src={EDITORIAL_IMG} alt="Editorial" loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-70" /><div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" /><div className="relative z-10 flex min-h-[500px] flex-col justify-between p-4 text-white md:min-h-[880px] md:p-12"><div className="flex justify-between text-[9px] font-bold uppercase tracking-[0.22em] md:text-[10px]"><span>Editorial / 004</span><span>Read the story ↗</span></div><div><h2 className="glitch text-[clamp(50px,12vw,200px)] font-black uppercase leading-[.72] tracking-[-.11em] md:text-[clamp(80px,17vw,250px)]">The<br /><span className="ml-[12vw] md:ml-[16vw]">new</span><br />normal<span className="text-[#ff2d2d]">.</span></h2><div className="mt-6 flex max-w-2xl flex-col justify-between gap-6 md:mt-10 md:flex-row md:items-end"><p className="max-w-[250px] text-[11px] leading-[1.5] text-white/80 md:max-w-[340px] md:text-[12px]">Clothes designed for people who don't dress to fit in. We explore everyday silhouettes through unexpected proportions, textures and attitude.</p><button type="button" className="flex items-center gap-2 text-left text-[9px] font-bold uppercase tracking-[0.2em] md:text-[10px]">Read the story <ArrowRight size={14} /></button></div></div></div></section>
 
       {/* LOYAL 404 CORNER */}
       <section id="loyal-corner" className="bg-black px-5 py-24 text-white md:px-10 md:py-32">
@@ -270,14 +275,14 @@ const App = () => {
 
       <Marquee reverse dark={false}>SEEN OUTSIDE THE 404 · #404STORE · TAG YOUR UNKNOWN</Marquee>
 
-      <section className="container mx-auto px-5 py-24 md:px-10 md:py-32">
-        <div className="mb-10 flex items-end justify-between"><div><p className="mb-4 text-[10px] font-bold uppercase tracking-[0.25em] text-black/45">Out there / 04</p><h2 className="text-5xl font-black uppercase leading-[.8] tracking-[-.08em] md:text-8xl">Seen outside<br /><span className="ml-16 text-[#ff2d2d]">the 404</span></h2></div><Instagram className="mb-2" size={30} strokeWidth={1} /></div>
+      <section className="container mx-auto px-4 py-16 md:px-10 md:py-32">
+        <div className="mb-8 flex items-end justify-between md:mb-10"><div><p className="mb-3 text-[9px] font-bold uppercase tracking-[0.25em] text-black/45 md:mb-4 md:text-[10px]">Out there / 04</p><h2 className="text-4xl font-black uppercase leading-[.8] tracking-[-.08em] md:text-8xl">Seen outside<br /><span className="ml-12 text-[#ff2d2d] md:ml-16">the 404</span></h2></div><Instagram className="mb-2" size={24} strokeWidth={1} /></div>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
-          <a href="#drop" className="group relative aspect-[.8] overflow-hidden md:row-span-2 md:aspect-auto"><img src={SOCIALS[0]} alt="street style" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
-          <a href="#drop" className="group relative aspect-square overflow-hidden"><img src={SOCIALS[1]} alt="detail" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
-          <a href="#drop" className="group relative aspect-square overflow-hidden"><img src={SOCIALS[2]} alt="portrait" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
-          <a href="#drop" className="group relative aspect-square overflow-hidden"><img src={SOCIALS[3]} alt="closeup" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
-          <a href="#drop" className="group relative aspect-square overflow-hidden"><img src={EDITORIAL_IMG} alt="look" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
+          <a href="#drop" className="group relative aspect-[.8] overflow-hidden md:row-span-2 md:aspect-auto"><img src={SOCIALS[0]} alt="street style" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
+          <a href="#drop" className="group relative aspect-square overflow-hidden"><img src={SOCIALS[1]} alt="detail" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
+          <a href="#drop" className="group relative aspect-square overflow-hidden"><img src={SOCIALS[2]} alt="portrait" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
+          <a href="#drop" className="group relative aspect-square overflow-hidden"><img src={SOCIALS[3]} alt="closeup" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
+          <a href="#drop" className="group relative aspect-square overflow-hidden"><img src={EDITORIAL_IMG} alt="look" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></a>
         </div>
       </section>
 
