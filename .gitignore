@@ -35,6 +35,9 @@ dist
 *credentials.json*
 .env
 
+# Emergent AI automation files
+.emergent/
+
 # Logs and debug files
 npm-debug.log*
 yarn-debug.log*
