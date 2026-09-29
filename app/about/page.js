@@ -262,18 +262,14 @@ export default function AboutPage() {
             </div>
             <div>
               <h4 className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#ff2d2d]">Follow</h4>
-              {['Instagram', 'YouTube', 'Pinterest', 'TikTok'].map((item) => (
-                <a key={item} href="#social" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">
-                  {item}
-                </a>
-              ))}
+              <a href="https://www.instagram.com/the404store.india/" target="_blank" rel="noopener noreferrer" className="mb-3 block text-[11px] uppercase tracking-[0.12em] text-white/65 hover:text-white">Instagram</a>
             </div>
           </div>
           <div className="mt-20 flex flex-col justify-between gap-4 border-t border-white/20 pt-5 text-[9px] uppercase tracking-[0.16em] text-white/40 md:flex-row">
             <span>© 2026 The 404 Store</span>
             <span>Privacy · Terms · Refund policy</span>
             <span>Made for the not found</span>
-            <a href="https://digital-future-32.preview.emergentagent.com/" target="_blank" rel="noopener noreferrer" className="hover:text-[#ff2d2d] transition">Made by KYRO Digital 💙</a>
+            <a href="https://digital-future-32.preview.emergentagent.com/" target="_blank" rel="noopener noreferrer" className="font-bold text-white hover:text-[#ff2d2d] transition">Made by KYRO Digital 💙</a>
           </div>
         </div>
       </footer>
