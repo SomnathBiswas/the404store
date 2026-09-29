@@ -161,6 +161,15 @@ export default function TrackingPage({ initialData, orderId }) {
           <p className="text-[10px] uppercase tracking-[0.18em] text-black/50">Anyone with this link can view the status of this order.</p>
           <Link href="/" className="flex items-center gap-2 bg-black px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-white hover:bg-[#ff2d2d]">Continue shopping <ArrowRight size={14} /></Link>
         </div>
+
+        {/* Footer */}
+        <footer className="bg-black px-5 py-8 text-white md:px-10">
+          <div className="container mx-auto flex flex-col justify-between gap-4 border-t border-white/20 pt-5 text-[9px] uppercase tracking-[0.16em] text-white/40 md:flex-row">
+            <span>© 2026 The 404 Store</span>
+            <span>Privacy · Terms · Refund policy</span>
+            <a href="https://digital-future-32.preview.emergentagent.com/" target="_blank" rel="noopener noreferrer" className="hover:text-[#ff2d2d] transition">Made by KYRO Digital 💙</a>
+          </div>
+        </footer>
       </div>
     </main>
   )

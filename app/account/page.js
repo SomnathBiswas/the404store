@@ -95,6 +95,15 @@ export default function AccountPage() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-black px-5 py-8 text-white md:px-10">
+        <div className="container mx-auto flex flex-col justify-between gap-4 border-t border-white/20 pt-5 text-[9px] uppercase tracking-[0.16em] text-white/40 md:flex-row">
+          <span>© 2026 The 404 Store</span>
+          <span>Privacy · Terms · Refund policy</span>
+          <a href="https://digital-future-32.preview.emergentagent.com/" target="_blank" rel="noopener noreferrer" className="hover:text-[#ff2d2d] transition">Made by KYRO Digital 💙</a>
+        </div>
+      </footer>
     </main>
   )
 }

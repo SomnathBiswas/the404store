@@ -273,6 +273,7 @@ export default function AboutPage() {
             <span>© 2026 The 404 Store</span>
             <span>Privacy · Terms · Refund policy</span>
             <span>Made for the not found</span>
+            <a href="https://digital-future-32.preview.emergentagent.com/" target="_blank" rel="noopener noreferrer" className="hover:text-[#ff2d2d] transition">Made by KYRO Digital 💙</a>
           </div>
         </div>
       </footer>

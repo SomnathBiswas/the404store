@@ -223,7 +223,7 @@ export default function ProductPage({ initialData, slug }) {
         </section>
       )}
 
-      <footer className="border-t border-black bg-black px-5 py-14 text-white md:px-10"><div className="container mx-auto flex flex-col justify-between gap-6 text-[10px] font-bold uppercase tracking-[0.2em] md:flex-row"><span>© 2026 THE 404 STORE</span><span className="text-[#ff2d2d]">Style not found.</span><Link href="/" className="flex items-center gap-2 hover:text-[#ff2d2d]">Back to store ↗</Link></div></footer>
+      <footer className="border-t border-black bg-black px-5 py-14 text-white md:px-10"><div className="container mx-auto flex flex-col justify-between gap-6 text-[10px] font-bold uppercase tracking-[0.2em] md:flex-row"><span>© 2026 THE 404 STORE</span><span className="text-[#ff2d2d]">Style not found.</span><Link href="/" className="flex items-center gap-2 hover:text-[#ff2d2d]">Back to store ↗</Link><a href="https://digital-future-32.preview.emergentagent.com/" target="_blank" rel="noopener noreferrer" className="hover:text-[#ff2d2d] transition">Made by KYRO Digital 💙</a></div></footer>
 
       {cartOpen && (
         <div className="fixed inset-0 z-[55]">
